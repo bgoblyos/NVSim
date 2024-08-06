@@ -19,35 +19,8 @@ using Plots
 # ╔═╡ 4a976190-3a88-4c9e-a75f-a034739e1703
 using BenchmarkTools
 
-# ╔═╡ ffd63497-7064-4830-9f75-d76540035287
-using JLD2
-
-# ╔═╡ aaa79991-ac1e-4464-bcce-7ecffb390417
-using CodecZlib
-
 # ╔═╡ c6d16f8d-3a69-45af-9ffb-b0cfa8778bf1
 dir = normalize(SA_F32[0.5,1,-1.5])
-
-# ╔═╡ dac27a9d-a31d-4a21-a906-2fe2669c774c
-# ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
-#=╠═╡
-CuBs = CuVector{Float32,CUDA.UnifiedMemory}(range(0,1000,100_000))
-  ╠═╡ =#
-
-# ╔═╡ a3a4d49e-8f73-4a52-8d59-b2572acb71bf
-# ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
-#=╠═╡
-CuBs2 = CuVector{Float32}(range(0,1000,100_000))
-  ╠═╡ =#
-
-# ╔═╡ 4f63756b-d74b-44f5-94cc-c49b840442df
-# ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
-#=╠═╡
-Bs = Float32.(range(0,1000,100_000))
-  ╠═╡ =#
 
 # ╔═╡ 403c34ef-cb53-4a58-9553-0070915654e6
 begin
@@ -148,7 +121,10 @@ end
   ╠═╡ =#
 
 # ╔═╡ 66accd6b-8c7b-4786-a9c2-4d91f9b7f3b9
-const floatType = Float32
+const floatType = Float64
+
+# ╔═╡ 0279dfaa-e562-4315-ac2f-4627de9fb831
+const n = 100
 
 # ╔═╡ e0c54e80-0899-489c-89c9-c6cb2e11c83e
 function Rz(t)
@@ -187,12 +163,7 @@ function hamiltonianEigenval(Hzeeman, B)
 end
 
 # ╔═╡ 065e66b6-a878-47d1-8f84-e70d4ab10660
-begin
-	const n = 155
-
-	eigenvals = nothing
-	GC.gc(true)
-
+CUDA.@profile begin
 	# Rotations
 	local αs = CuArray{floatType}(reshape(range(0, 2π, n), (n,1,1,1)))
 	local Rxs = Rx.(αs)
@@ -208,8 +179,32 @@ begin
 	
 	local Bs = CuArray{floatType}(reshape(range(0, 1000, n), (1,1,1,n)))
 
-	eigenvals = hamiltonianEigenval.(Hzeemans, Bs)
+	eigenvals = Array{SVector{3, floatType}}(undef, (n,n,n,n))
+	copyto!(eigenvals, hamiltonianEigenval.(Hzeemans, Bs))
 end
+
+# ╔═╡ f801656d-22d9-4cab-a949-6de6918cbd89
+function CPU(;dir = dir, n = 100, αr = (0, 2π), βr = (0, 2π), γr = (0, 2π), floatType = Float64)
+	# Rotations
+	local αs = floatType.(reshape(range(αr[1], αr[2], n), (n,1,1,1)))
+	local Rxs = Rx.(αs)
+	local βs = floatType.(reshape(range(βr[1], βr[2], n), (1,n,1,1)))
+	local Rys = Ry.(βs)
+	local γs = floatType.(reshape(range(γr[1], γr[2], n), (1,1,n,1)))
+	local Rzs = Rz.(γs)
+
+	# Rotated vectors
+	local dirs = rotate.(Rxs, Rys, Rzs, Ref(dir))
+
+	local Hzeemans = unscaledZeeman.(dirs)
+	
+	local Bs = floatType.(reshape(range(0, 1000, n), (1,1,1,n)))
+
+	CPUeigenvals = hamiltonianEigenval.(Hzeemans, Bs)
+end
+
+# ╔═╡ e3d1b098-89ea-4eb5-973b-a44fdb3be8ac
+@benchmark CPU(n = 5) seconds = 60
 
 # ╔═╡ 28cd1c01-18ea-4b77-ac8f-d2870c647fc5
 CUDA.reclaim()
@@ -217,27 +212,11 @@ CUDA.reclaim()
 # ╔═╡ 6c12818e-6527-4cbd-bb76-2b3c9201211e
 CUDA.pool_status()
 
-# ╔═╡ 87a86763-c4c9-4c76-bf30-965b80f72217
-eigenvals
-
-# ╔═╡ 875ad3e7-4de2-4e66-ba76-6b72f41ed74e
-# ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
-#=╠═╡
-begin
-	local cpu = Array{SVector{3, Float32}}(undef, (n,n,n,n))
-	copyto!(cpu, eigenvals)
-	jldsave("/home/bence/Scratchpad/NVSim_eigenvals.jld2"; eigenvals=cpu)
-end
-  ╠═╡ =#
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
-JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -245,8 +224,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [compat]
 BenchmarkTools = "~1.5.0"
 CUDA = "~5.4.2"
-CodecZlib = "~0.7.5"
-JLD2 = "~0.4.50"
 Plots = "~1.40.5"
 StaticArrays = "~1.9.7"
 """
@@ -257,7 +234,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "d980e23dff3288d47ce66676890c6df23eb968ec"
+project_hash = "3dd2d8d144b1ca29afa2fa1da06151111b9091a3"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -512,12 +489,6 @@ git-tree-sha1 = "466d45dc38e15794ec7d5d63ec03d776a9aff36e"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.4+1"
 
-[[deps.FileIO]]
-deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "82d8afa92ecf4b52d78d869f038ebfb881267322"
-uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.16.3"
-
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
@@ -655,12 +626,6 @@ version = "0.2.2"
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
-
-[[deps.JLD2]]
-deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "Requires", "TranscodingStreams", "UUIDs", "Unicode"]
-git-tree-sha1 = "5fe858cb863e211c6dedc8cce2dc0752d4ab6e2b"
-uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.50"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -1612,9 +1577,6 @@ version = "1.4.1+1"
 # ╠═062c1d19-26f8-432a-8c4d-cd6857524241
 # ╠═4a976190-3a88-4c9e-a75f-a034739e1703
 # ╠═c6d16f8d-3a69-45af-9ffb-b0cfa8778bf1
-# ╠═dac27a9d-a31d-4a21-a906-2fe2669c774c
-# ╠═a3a4d49e-8f73-4a52-8d59-b2572acb71bf
-# ╠═4f63756b-d74b-44f5-94cc-c49b840442df
 # ╠═403c34ef-cb53-4a58-9553-0070915654e6
 # ╠═d19c20ee-65bb-471f-bb80-919de1c7d915
 # ╠═5d888b49-3ed3-433b-9fe1-14c2c0063a76
@@ -1631,6 +1593,7 @@ version = "1.4.1+1"
 # ╠═15d556d3-9ee4-4809-9d41-fb9e41761573
 # ╠═9993168f-2a9b-490a-a380-33533eabd929
 # ╠═66accd6b-8c7b-4786-a9c2-4d91f9b7f3b9
+# ╠═0279dfaa-e562-4315-ac2f-4627de9fb831
 # ╠═e0c54e80-0899-489c-89c9-c6cb2e11c83e
 # ╠═773e32bd-31c6-4e3d-8e64-03aea0c0e0bf
 # ╠═cd56f4a5-246f-42f6-8849-920fa690a605
@@ -1638,11 +1601,9 @@ version = "1.4.1+1"
 # ╠═4ff8348a-9c8b-4ff4-98be-68500958d89d
 # ╠═e60a37b0-7b9b-408e-beef-1197a898bfbd
 # ╠═065e66b6-a878-47d1-8f84-e70d4ab10660
+# ╠═f801656d-22d9-4cab-a949-6de6918cbd89
+# ╠═e3d1b098-89ea-4eb5-973b-a44fdb3be8ac
 # ╠═28cd1c01-18ea-4b77-ac8f-d2870c647fc5
 # ╠═6c12818e-6527-4cbd-bb76-2b3c9201211e
-# ╠═87a86763-c4c9-4c76-bf30-965b80f72217
-# ╠═ffd63497-7064-4830-9f75-d76540035287
-# ╠═aaa79991-ac1e-4464-bcce-7ecffb390417
-# ╠═875ad3e7-4de2-4e66-ba76-6b72f41ed74e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
