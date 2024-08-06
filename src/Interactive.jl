@@ -26,6 +26,9 @@ using LinearAlgebra
 # ╔═╡ 9aa760fb-99c9-4780-a9e6-2b8a6a938820
 using Plots
 
+# ╔═╡ 937dfb1a-df70-4660-9914-9acb6d1f1e63
+using BenchmarkTools
+
 # ╔═╡ b5c2e168-4811-11ef-3dbb-cdd3228e10be
 using Eigenstates
 
@@ -65,6 +68,7 @@ end
 function plotRotated(angles)
 	original = SA_F64[0, 0, 1]
 	rotated = rotationMatrix(angles.α, angles.β, angles.γ) * original
+	println(rotated)
 	plotDirection(rotated)
 end
 
@@ -94,15 +98,23 @@ end
 # ╔═╡ b1213200-cea3-4acc-8a73-9ba750b7e460
 plotRotated(angles)
 
+# ╔═╡ cd74f901-6bd5-4c0d-8412-b1ada8f28744
+@benchmark eigenStates.(Ref(orientation), data) setup=(data=rand((0:1000), 1_000_000); orientation = normalize(@SVector randn(3)))
+
+# ╔═╡ e36a9e0d-0a65-4869-a93e-f8d9ec30bb9a
+@SVector randn(3)
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+BenchmarkTools = "~1.5.0"
 Plots = "~1.40.5"
 PlutoUI = "~0.7.59"
 StaticArrays = "~1.9.7"
@@ -114,7 +126,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "5bc4f33ff6119ca50a407ac50490d51babd2cb94"
+project_hash = "a667ef8d5bec20336f806f63e4e0e7553c21764b"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -131,6 +143,12 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[deps.BenchmarkTools]]
+deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "f1dff6729bc61f4d49e140da1af55dcd1ac97b2f"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.5.0"
 
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
@@ -730,6 +748,10 @@ version = "1.4.3"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[deps.Profile]]
+deps = ["Printf"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+
 [[deps.Qt6Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Vulkan_Loader_jll", "Xorg_libSM_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_cursor_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "libinput_jll", "xkbcommon_jll"]
 git-tree-sha1 = "492601870742dcd38f233b23c3ec629628c1d724"
@@ -1224,6 +1246,7 @@ version = "1.4.1+1"
 # ╠═5c6e885c-2410-4ebf-81f3-0739d49c6ce5
 # ╠═d51a5d61-db63-4ce5-ab61-7bec9291633d
 # ╠═9aa760fb-99c9-4780-a9e6-2b8a6a938820
+# ╠═937dfb1a-df70-4660-9914-9acb6d1f1e63
 # ╠═d4f29a6d-77d6-43ce-af7a-f799080d2ea7
 # ╠═3369b471-4ea6-45eb-8c44-70e553ce53bc
 # ╠═b5c2e168-4811-11ef-3dbb-cdd3228e10be
@@ -1234,5 +1257,7 @@ version = "1.4.1+1"
 # ╠═4a210c42-fefe-4634-acb7-b2e4742c0fcb
 # ╠═5787f923-aa5a-4b01-a584-7cef5e77e9ff
 # ╠═b1213200-cea3-4acc-8a73-9ba750b7e460
+# ╠═cd74f901-6bd5-4c0d-8412-b1ada8f28744
+# ╠═e36a9e0d-0a65-4869-a93e-f8d9ec30bb9a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
