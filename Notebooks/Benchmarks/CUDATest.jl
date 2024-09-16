@@ -4,308 +4,279 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 0a0a94c8-653d-11ef-13fa-b98a27cb8524
-using Plots
-
-# ╔═╡ dbc2d3f9-5d70-4733-ae40-8750a8ea04ed
+# ╔═╡ 40573b1a-4901-11ef-306b-89a78a9e5e41
+# ╠═╡ disabled = true
+#=╠═╡
 using CUDA
+  ╠═╡ =#
 
-# ╔═╡ 77d5e493-08d0-4433-b8e5-0344de775b6e
-using Peaks
-
-# ╔═╡ c704e52b-e516-495c-84e1-3557466004b2
-using JLD2
-
-# ╔═╡ d67e3371-9b78-45dd-a2d0-38982080bca4
+# ╔═╡ 752f5ee3-4118-4795-83de-aa259b290bfc
 using StaticArrays
 
-# ╔═╡ 7b7f582c-ce95-4f6a-a6de-29c3cf16e356
+# ╔═╡ 0a029c32-846f-4be6-8a79-c644b2cd06eb
 using LinearAlgebra
 
-# ╔═╡ ad79aef6-907f-4c6d-8e15-e20ecf669e3b
+# ╔═╡ 062c1d19-26f8-432a-8c4d-cd6857524241
+using Plots
+
+# ╔═╡ 4a976190-3a88-4c9e-a75f-a034739e1703
+using BenchmarkTools
+
+# ╔═╡ c6d16f8d-3a69-45af-9ffb-b0cfa8778bf1
+dir = normalize(SA_F32[0.5,1,-1.5])
+
+# ╔═╡ 403c34ef-cb53-4a58-9553-0070915654e6
 begin
 	const MHzToK = Float32(4.7991939324e-5)
 	const GHzToK = Float32(4.7991939324e-2)
-	const gToK = Float32(6.71714e-5) 
+	const gToK = Float32(6.71714e-5)
 	const D = Float32(2875)
 	const E = Float32(0)
 	const g = Float32(2.0026)
-	md"Constants"
 end
 
-# ╔═╡ 6d1f7bba-54ea-47dd-a23b-e88185e8960b
-begin
-	const spinX = SMatrix{3,3,ComplexF32}([ 0 1 0
-                                            1 0 1
-                                            0 1 0 ] / sqrt(2))
-	const spinY = SMatrix{3,3,ComplexF32}([  0 -im    0
-                                             im   0  -im
-                                              0   im   0 ] / sqrt(2))
-	const spinZ = SMatrix{3,3,ComplexF32}([ 1  0  0
-                                            0  0  0
-                                            0  0 -1 ])
-	md"Spin matrices"
-end
+# ╔═╡ d19c20ee-65bb-471f-bb80-919de1c7d915
+const spinX = SMatrix{3,3,ComplexF32}([ 0 1 0
+                                        1 0 1
+                                        0 1 0 ] / sqrt(2))
 
-# ╔═╡ 0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
-begin
-	const spinX2 = spinX^2
-	const spinY2 = spinY^2
-	const spinZ2 = spinZ^2
-	md"Spin matrices squared"
-end
+# ╔═╡ 5d888b49-3ed3-433b-9fe1-14c2c0063a76
+const spinY = SMatrix{3,3, ComplexF32}([  0 -im    0
+                                         im   0  -im
+                                          0   im   0 ] / sqrt(2))
 
-# ╔═╡ 1cbe30b8-eb82-4bef-b774-0d19da33863a
-begin
-	const spinVector = @SVector [spinX, spinY, spinZ]
-	md"Spin vector"
-end
+# ╔═╡ a5d1cb3e-8a3e-4635-b0ac-1da7873847d7
+const spinZ = SMatrix{3,3,ComplexF32}([ 1  0  0
+                                        0  0  0
+                                        0  0 -1 ])
 
-# ╔═╡ 27b097d2-9989-45d3-8725-3e9a4820024e
+# ╔═╡ b2a68013-ca4c-46c0-8888-95717baf5033
+const spinVector = @SVector [spinX, spinY, spinZ]
+
+# ╔═╡ 014cfed6-489e-4854-830d-91179e00ca21
+const spinX2 = spinX^2
+
+# ╔═╡ 628e0318-1270-4d9b-86a5-1606ef166a84
+const spinY2 = spinY^2
+
+# ╔═╡ c020cc54-d301-4176-8a34-8630afbc5875
+const spinZ2 = spinZ^2
+
+# ╔═╡ 67e00493-9e1e-4c16-8d62-78be88dee802
 const Hnv = begin
     d = D * (spinZ2 - (spinX2 + spinY2 + spinZ2) / 3)
     e = E * (spinX2 - spinY2)
     MHzToK * (d + e)
 end
 
-# ╔═╡ e9b9d1bf-c257-45c5-93a2-25a99efaf73f
-const dirs = normalize.([SA_F32[1,-1,-1], SA_F32[-1,1,-1], SA_F32[-1,-1,1], SA_F32[1,1,1]])
+# ╔═╡ 858146d1-6815-454f-8dcf-2e08c09da0f6
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+function hybridEigenStates(dir, Bs)
+	hamiltonians = hamiltonian.(Ref(dir), Bs)
+	return eigvals.(hamiltonians)
+end
+  ╠═╡ =#
 
-# ╔═╡ bc31145a-4d0c-41c9-ba8e-10af53d24bf5
-md"#### Rotation functions"
+# ╔═╡ 99f8b994-2d66-44c3-b7cf-0a4b20ecd162
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+function explicitCopy(dir, Bs)
+	hamiltoniansGPU = hamiltonian.(Ref(dir), Bs)
+	hamiltoniansCPU = Array{StaticArraysCore.SMatrix{3, 3, ComplexF32, 9}}(undef, 100_000)
+	copyto!(hamiltoniansCPU, hamiltoniansGPU)
+	return eigvals.(hamiltoniansCPU)
+end
+  ╠═╡ =#
 
-# ╔═╡ f5859816-6659-4ce7-9e28-c20b803849ba
+# ╔═╡ 66afe5e8-ba30-4829-9d86-757b23a58acc
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+# Benchmark GPU unified memory
+@benchmark CUDA.@sync hybridEigenStates(dir, CuBs)
+  ╠═╡ =#
+
+# ╔═╡ dfc7b40a-1a6a-47bf-b15f-03bafa6dcc6f
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+# Benchmark GPU device memory
+@benchmark CUDA.@sync hybridEigenStates(dir, CuBs2)
+  ╠═╡ =#
+
+# ╔═╡ 15d556d3-9ee4-4809-9d41-fb9e41761573
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+# Benchmark CPU
+@benchmark hybridEigenStates(dir, Bs)
+  ╠═╡ =#
+
+# ╔═╡ 9993168f-2a9b-490a-a380-33533eabd929
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+# Benchmark GPU device memory plus CPU copy
+@benchmark CUDA.@sync explicitCopy(dir, CuBs2)
+  ╠═╡ =#
+
+# ╔═╡ 66accd6b-8c7b-4786-a9c2-4d91f9b7f3b9
+const floatType = Float64
+
+# ╔═╡ 0279dfaa-e562-4315-ac2f-4627de9fb831
+const n = 100
+
+# ╔═╡ e0c54e80-0899-489c-89c9-c6cb2e11c83e
 function Rz(t)
-	SMatrix{3,3,Float32}(  1,       0,       0,
-	                       0,  cos(t), -sin(t),
-	                       0,  sin(t),  cos(t)  )
+	SMatrix{3,3,floatType}(  1,       0,       0,
+	                         0,  cos(t), -sin(t),
+	                         0,  sin(t),  cos(t)  )
 end
 
-# ╔═╡ 2cddcd6c-f3d0-4308-9b60-b3c70507cab5
+# ╔═╡ 773e32bd-31c6-4e3d-8e64-03aea0c0e0bf
 function Ry(t)
-	SMatrix{3,3,Float32}(  cos(t),  0,  sin(t),
-	                            0,  1,       0,
-	                      -sin(t),  0,  cos(t)  )
+	SMatrix{3,3,floatType}(  cos(t),  0,  sin(t),
+	                              0,  1,       0,
+	                        -sin(t),  0,  cos(t)  )
 end
 
-# ╔═╡ 7a4581aa-14a0-467b-9ecf-1f351ce95e7b
+# ╔═╡ cd56f4a5-246f-42f6-8849-920fa690a605
 function Rx(t)
-	SMatrix{3,3,Float32}( cos(t), -sin(t),  0,
-	                      sin(t),  cos(t),  0,
-	                           0,       0,  1  )
+	SMatrix{3,3,floatType}( cos(t), -sin(t),  0,
+	                        sin(t),  cos(t),  0,
+	                             0,       0,  1  )
 end
 
-# ╔═╡ 885a4f2a-fd99-478c-ab64-018660f620ce
+# ╔═╡ 8f4a5bfa-bf84-4d65-9f42-40b867e17cae
 function rotate(Rx, Ry, Rz, vect)
 	Rz * Ry * Rx * vect
 end
 
-# ╔═╡ 327bf173-e909-4c0c-9cff-71efc2f6044e
-function rotationMatrix(α, β, γ)
-	Rz(γ) * Ry(β) * Rx(α)
-end
-
-# ╔═╡ f4733ba9-59a4-41d6-8690-dc3bcf9f7066
-md"#### NV center simulation functions"
-
-# ╔═╡ f86f903b-4418-4438-abca-afb8a8b02a9e
+# ╔═╡ 4ff8348a-9c8b-4ff4-98be-68500958d89d
 function unscaledZeeman(dir)
 	gToK * g * sum(spinVector .* dir)
 end
 
-# ╔═╡ 0b624019-90c2-4790-b793-4d9d3f3833db
-md"#### Input processing functions"
-
-# ╔═╡ 9d37429c-a41b-4024-a02e-d934cd1ee48b
-function findODMRPeaks(freqs, signal)
-	pks, vals = findmaxima(signal)
-	_, proms = peakproms!(pks, signal)
-	decreasingProms = sort(proms, rev = true)
-	peakFreqs = zeros(8)
-	for i in 1:8
-		peakIndex = findfirst(==(decreasingProms[i]), proms)
-		peakFreqs[i] = freqs[pks[peakIndex]]
-	end
-	return sort(peakFreqs)
+# ╔═╡ e60a37b0-7b9b-408e-beef-1197a898bfbd
+function hamiltonianEigenval(Hzeeman, B)
+	eigvals(Hnv + B * Hzeeman)
 end
 
-# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
-begin
-	testData = jldopen("../../data/2024-09-09.jld2")
-	peakMatrix = testData["peaks"]
-	VHs = testData["VHs"]
-	IMs = testData["IMs"]
-	md"Data import"
-end
-
-# ╔═╡ 05c0b368-be58-4ac5-ba7d-b917126b331a
+# ╔═╡ 065e66b6-a878-47d1-8f84-e70d4ab10660
 # ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
 #=╠═╡
-begin
-	peakMatrix = zeros(length(Bs), 8)
-	for i in 1:length(Bs)
-		peakMatrix[i,:] = findODMRPeaks(freqs, signals[i,:])
-	end
-	peakMatrix
+CUDA.@profile begin
+	# Rotations
+	local αs = CuArray{floatType}(reshape(range(0, 2π, n), (n,1,1,1)))
+	local Rxs = Rx.(αs)
+	local βs = CuArray{floatType}(reshape(range(0, 2π, n), (1,n,1,1)))
+	local Rys = Ry.(βs)
+	local γs = CuArray{floatType}(reshape(range(0, 2π, n), (1,1,n,1)))
+	local Rzs = Rz.(γs)
+
+	# Rotated vectors
+	local dirs = rotate.(Rxs, Rys, Rzs, Ref(dir))
+
+	local Hzeemans = unscaledZeeman.(dirs)
+	
+	local Bs = CuArray{floatType}(reshape(range(0, 1000, n), (1,1,1,n)))
+
+	eigenvals = Array{SVector{3, floatType}}(undef, (n,n,n,n))
+	copyto!(eigenvals, hamiltonianEigenval.(Hzeemans, Bs))
 end
   ╠═╡ =#
 
-# ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
-function simKernel!(scores, Rxs, Rys, Rzs, rawBs, offsets, slopes, peakMatrix)
-    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
-	k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+# ╔═╡ f801656d-22d9-4cab-a949-6de6918cbd89
+function CPU(;dir = dir, n = 100, αr = (0, 2π), βr = (0, 2π), γr = (0, 2π), floatType = Float64)
+	# Rotations
+	local αs = floatType.(reshape(range(αr[1], αr[2], n), (n,1,1,1)))
+	local Rxs = Rx.(αs)
+	local βs = floatType.(reshape(range(βr[1], βr[2], n), (1,n,1,1)))
+	local Rys = Ry.(βs)
+	local γs = floatType.(reshape(range(γr[1], γr[2], n), (1,1,n,1)))
+	local Rzs = Rz.(γs)
 
-	if i <= size(scores)[1] && j <= size(scores)[2] && k <= size(scores)[3]
-		@inbounds Rx = Rxs[i]
-		@inbounds Ry = Rys[j]
-		@inbounds Rz = Rzs[k]
+	# Rotated vectors
+	local dirs = rotate.(Rxs, Rys, Rzs, Ref(dir))
 
-		rot = Rz * Ry * Rx
+	local Hzeemans = unscaledZeeman.(dirs)
+	
+	local Bs = floatType.(reshape(range(0, 1000, n), (1,1,1,n)))
 
-		# Quite repetitive, but allocating the arrays for storing them more nicely
-		# would likely take up more space and be slower
-		@inbounds dir1 = rot * dirs[1]
-		Hzeeman1 = unscaledZeeman(dir1)
-		@inbounds dir2 = rot * dirs[2]
-		Hzeeman2 = unscaledZeeman(dir2)
-		@inbounds dir3 = rot * dirs[3]
-		Hzeeman3 = unscaledZeeman(dir3)
-		@inbounds dir4 = rot * dirs[4]
-		Hzeeman4 = unscaledZeeman(dir4)
-
-		for Bi in 1:length(rawBs), Oi in 1:length(offsets), Si in 1:length(slopes)
-			@inbounds B = offsets[Oi] + slopes[Si] * rawBs[Bi]
-
-			# Direction 1
-			@inbounds vals1 = eigvals(Hnv + B * Hzeeman1)/GHzToK
-
-			# Direction 2
-			@inbounds vals2 = eigvals(Hnv + B * Hzeeman2)/GHzToK
-
-			# Direction 3
-			@inbounds vals3 = eigvals(Hnv + B * Hzeeman3)/GHzToK
-
-			# Direction 4
-			@inbounds vals4 = eigvals(Hnv + B * Hzeeman4)/GHzToK
-
-			@inbounds peaks = SVector(
-				abs(vals1[1] - vals1[3]),
-				abs(vals1[1] - vals1[2]),
-				abs(vals2[1] - vals2[3]),
-				abs(vals2[1] - vals2[2]),
-				abs(vals3[1] - vals3[3]),
-				abs(vals3[1] - vals3[2]),
-				abs(vals4[1] - vals4[3]),
-				abs(vals4[1] - vals4[2])
-			)
-
-			sortedPeaks = sort(peaks)
-
-			for y in 1:8
-				# Add the distance squared of the corresponding peaks to the score
-				@inbounds scores[i, j, k, Oi, Si] += (peakMatrix[Bi, y] - sortedPeaks[y])^2
-			end
-		end
-	end
-    return
+	CPUeigenvals = hamiltonianEigenval.(Hzeemans, Bs)
 end
 
-# ╔═╡ d44a7190-adb4-460a-949e-005d9afaed73
-function computeScores(αs, βs, γs, offsets, slopes)
-	n1 = length(αs)
-	n2 = length(βs)
-	n3 = length(γs)
-	
-	αs = CuArray{Float32}(αs)
-	βs = CuArray{Float32}(βs)
-	γs = CuArray{Float32}(γs)
+# ╔═╡ 0cb4d072-860c-4886-a118-b9ea16636138
+data = CPU(n = 10)
 
-	Rxs = Rx.(αs)
-	Rys = Ry.(βs)
-	Rzs = Rz.(γs)
+# ╔═╡ e3d1b098-89ea-4eb5-973b-a44fdb3be8ac
+@benchmark CPU(n = 5) seconds = 60
 
-	offsets = CuArray{Float32}(offsets)
-	slopes = CuArray{Float32}(slopes)
-	
-	threads = (10,8,8)
-	bNum1 = ceil(Int, n1/10)
-	bNum2 = ceil(Int, n2/8)
-	bNum3 = ceil(Int, n3/8)
-	blocks = (bNum1, bNum2, bNum3)
+# ╔═╡ abc468dd-8618-4191-a801-a825cc7d3675
+f(es) = (abs(es[1]-es[3]), abs(es[2]-es[3]))
 
-	scores = CUDA.zeros(Float32, n1, n2, n3, length(offsets), length(slopes))
-	
-	@cuda fastmath=true threads=threads blocks=blocks simKernel!(scores, Rxs, Rys, Rzs, cu(IMs), offsets, slopes, cu(peakMatrix))
+# ╔═╡ 5e7eda9e-0929-4b29-8692-5f5045faf0e7
+f.(data)
 
-	#synchronize()
-	return scores
+# ╔═╡ fdf66348-3b49-4b6d-9d2d-c0de4e8f7a80
+function hamiltonianEigen(Hzeeman, B)
+	eigen(Hnv + B * Hzeeman)
 end
 
-# ╔═╡ d247234b-6a81-4f7e-811a-c512fd15e142
-function fitODMR(αs, βs, γs)
-	offsets = range(-9.5, -7.5, 32)
-	slopes = range(269, 271.5, 32)
-	scores = computeScores(αs, βs, γs, offsets, slopes)
-	min = findmin(scores)
-	bestfit = min[1]
-	coords = min[2]
-	α = αs[coords[1]]
-	β = βs[coords[2]]
-	γ = γs[coords[3]]
-	offset = offsets[coords[4]]
-	slope = slopes[coords[5]]
-	return (bestfit = bestfit, orientation = (α = α, β = β, γ = γ, offset = offset, slope = slope))
-end
+# ╔═╡ 59f355c1-9cae-4861-bd1b-0bdac920c6d1
+function CPUeigen(;dir = dir, n = 100, αr = (0, 2π), βr = (0, 2π), γr = (0, 2π), floatType = Float64)
+	# Rotations
+	local αs = floatType.(reshape(range(αr[1], αr[2], n), (n,1,1,1)))
+	local Rxs = Rx.(αs)
+	local βs = floatType.(reshape(range(βr[1], βr[2], n), (1,n,1,1)))
+	local Rys = Ry.(βs)
+	local γs = floatType.(reshape(range(γr[1], γr[2], n), (1,1,n,1)))
+	local Rzs = Rz.(γs)
 
-# ╔═╡ 79dcf062-819b-4291-8f0a-b9355493261e
-function segmentedFit(n)
-	blockSize = 32
-	totalSize = blockSize * n
+	# Rotated vectors
+	local dirs = rotate.(Rxs, Rys, Rzs, Ref(dir))
 
-	bestFit = Inf
-	bestOrientation = missing
+	local Hzeemans = unscaledZeeman.(dirs)
 	
-	angles = range(0, π, totalSize + 1)[2:end]
+	local Bs = floatType.(reshape(range(0, 1000, n), (1,1,1,n)))
 
-	for i in 1:n, j in 1:n, k in 1:n
-		iSlice = (((i - 1) * blockSize) + 1):(i * blockSize)
-		jSlice = (((j - 1) * blockSize) + 1):(j * blockSize)
-		kSlice = (((k - 1) * blockSize) + 1):(k * blockSize)
-
-		fit = fitODMR(angles[iSlice], angles[jSlice], angles[kSlice])
-
-		if fit.bestfit < bestFit
-			bestFit = fit.bestfit
-			bestOrientation = fit.orientation
-		end
-	end
-
-	return (bestfit = bestFit, orientation = bestOrientation)
-		
+	CPUeigenvals = hamiltonianEigen.(Hzeemans, Bs)
 end
 
-# ╔═╡ 0857c507-69fb-4a13-9f9d-0aced7908381
-CUDA.@profile segmentedFit(1)
+# ╔═╡ 0d36fcbd-877f-4a89-a9cd-22f5c2697efa
+eigendata = CPUeigen(n = 10)
 
-# ╔═╡ 174177e9-f82d-4cf4-a396-bfea946d13b3
-result = segmentedFit(10)
+# ╔═╡ 2b2f63c8-28f6-4c2f-a912-3b37e2bb27b4
+sizeof(eigendata)
+
+# ╔═╡ d4997422-b8b4-4787-9b76-6c304fd1980f
+eigendata[1,1,1,8]
+
+# ╔═╡ 28cd1c01-18ea-4b77-ac8f-d2870c647fc5
+#=╠═╡
+CUDA.reclaim()
+  ╠═╡ =#
+
+# ╔═╡ 6c12818e-6527-4cbd-bb76-2b3c9201211e
+#=╠═╡
+CUDA.pool_status()
+  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-CUDA = "~5.4.2"
-JLD2 = "~0.4.50"
-Peaks = "~0.5.2"
+BenchmarkTools = "~1.5.0"
+CUDA = "~5.4.3"
 Plots = "~1.40.5"
 StaticArrays = "~1.9.7"
 """
@@ -316,7 +287,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "4ba3526684466f0996a19faea9834308a4a1024b"
+project_hash = "cf248b88c23e0fa4a6ad279671e30cd36be5306e"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -364,6 +335,12 @@ version = "0.5.0"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
+[[deps.BenchmarkTools]]
+deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "f1dff6729bc61f4d49e140da1af55dcd1ac97b2f"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.5.0"
+
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
@@ -382,9 +359,9 @@ version = "0.5.0"
 
 [[deps.CUDA]]
 deps = ["AbstractFFTs", "Adapt", "BFloat16s", "CEnum", "CUDA_Driver_jll", "CUDA_Runtime_Discovery", "CUDA_Runtime_jll", "Crayons", "DataFrames", "ExprTools", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "LLVMLoopInfo", "LazyArtifacts", "Libdl", "LinearAlgebra", "Logging", "NVTX", "Preferences", "PrettyTables", "Printf", "Random", "Random123", "RandomNumbers", "Reexport", "Requires", "SparseArrays", "StaticArrays", "Statistics"]
-git-tree-sha1 = "6e945e876652f2003e6ca74e19a3c45017d3e9f6"
+git-tree-sha1 = "fdd9dfb67dfefd548f51000cc400bb51003de247"
 uuid = "052768ef-5323-5732-b1bb-66c8b64840ba"
-version = "5.4.2"
+version = "5.4.3"
 
     [deps.CUDA.extensions]
     ChainRulesCoreExt = "ChainRulesCore"
@@ -398,9 +375,9 @@ version = "5.4.2"
 
 [[deps.CUDA_Driver_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
-git-tree-sha1 = "c48f9da18efd43b6b7adb7ee1f93fe5f2926c339"
+git-tree-sha1 = "97df9d4d6be8ac6270cb8fd3b8fc413690820cbd"
 uuid = "4ee394cb-3365-5eb0-8335-949819d2adfc"
-version = "0.9.0+0"
+version = "0.9.1+1"
 
 [[deps.CUDA_Runtime_Discovery]]
 deps = ["Libdl"]
@@ -410,9 +387,9 @@ version = "0.3.4"
 
 [[deps.CUDA_Runtime_jll]]
 deps = ["Artifacts", "CUDA_Driver_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "bcba305388e16aa5c879e896726db9e71b4942c6"
+git-tree-sha1 = "afea94249b821dc754a8ca6695d3daed851e1f5a"
 uuid = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
-version = "0.14.0+1"
+version = "0.14.1+0"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -513,12 +490,6 @@ version = "1.0.0"
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
-[[deps.Dbus_jll]]
-deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "fc173b380865f70627d7dd1190dc2fce6cc105af"
-uuid = "ee1fde0b-3d02-5ea6-8484-8dfef6360eab"
-version = "1.14.10+0"
-
 [[deps.DelimitedFiles]]
 deps = ["Mmap"]
 git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
@@ -571,12 +542,6 @@ git-tree-sha1 = "466d45dc38e15794ec7d5d63ec03d776a9aff36e"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.4+1"
 
-[[deps.FileIO]]
-deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "82d8afa92ecf4b52d78d869f038ebfb881267322"
-uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.16.3"
-
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
@@ -614,16 +579,16 @@ deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[deps.GLFW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll", "libdecor_jll", "xkbcommon_jll"]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll", "xkbcommon_jll"]
 git-tree-sha1 = "3f74912a156096bd8fdbef211eff66ab446e7297"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.4.0+0"
 
 [[deps.GPUArrays]]
 deps = ["Adapt", "GPUArraysCore", "LLVM", "LinearAlgebra", "Printf", "Random", "Reexport", "Serialization", "Statistics"]
-git-tree-sha1 = "5c9de6d5af87acd2cf719e214ed7d51e14017b7a"
+git-tree-sha1 = "a74c3f1cf56a3dfcdef0605f8cdb7015926aae30"
 uuid = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
-version = "10.2.2"
+version = "10.3.0"
 
 [[deps.GPUArraysCore]]
 deps = ["Adapt"]
@@ -632,10 +597,10 @@ uuid = "46192b85-c4d5-4398-a991-12ede77f4527"
 version = "0.1.6"
 
 [[deps.GPUCompiler]]
-deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "Scratch", "TimerOutputs", "UUIDs"]
-git-tree-sha1 = "518ebd058c9895de468a8c255797b0c53fdb44dd"
+deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "Preferences", "Scratch", "Serialization", "TOML", "TimerOutputs", "UUIDs"]
+git-tree-sha1 = "ab29216184312f99ff957b32cd63c2fe9c928b91"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "0.26.5"
+version = "0.26.7"
 
 [[deps.GR]]
 deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Preferences", "Printf", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "p7zip_jll"]
@@ -685,16 +650,17 @@ uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.8.1+1"
 
 [[deps.InlineStrings]]
-deps = ["Parsers"]
-git-tree-sha1 = "86356004f30f8e737eff143d57d41bd580e437aa"
+git-tree-sha1 = "45521d31238e87ee9f9732561bfee12d4eebd52d"
 uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
-version = "1.4.1"
+version = "1.4.2"
 
     [deps.InlineStrings.extensions]
     ArrowTypesExt = "ArrowTypes"
+    ParsersExt = "Parsers"
 
     [deps.InlineStrings.weakdeps]
     ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+    Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
@@ -714,12 +680,6 @@ version = "0.2.2"
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
-
-[[deps.JLD2]]
-deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "PrecompileTools", "Reexport", "Requires", "TranscodingStreams", "UUIDs", "Unicode"]
-git-tree-sha1 = "5fe858cb863e211c6dedc8cce2dc0752d4ab6e2b"
-uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.50"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -777,9 +737,9 @@ version = "3.0.0+1"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Requires", "Unicode"]
-git-tree-sha1 = "389aea28d882a40b5e1747069af71bdbd47a1cae"
+git-tree-sha1 = "020abd49586480c1be84f57da0017b5d3db73f7c"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "7.2.1"
+version = "8.0.0"
 weakdeps = ["BFloat16s"]
 
     [deps.LLVM.extensions]
@@ -787,9 +747,9 @@ weakdeps = ["BFloat16s"]
 
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "88b916503aac4fb7f701bb625cd84ca5dd1677bc"
+git-tree-sha1 = "c2636c264861edc6d305e6b4d528f09566d24c5e"
 uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
-version = "0.0.29+0"
+version = "0.0.30+0"
 
 [[deps.LLVMLoopInfo]]
 git-tree-sha1 = "2e5c102cfc41f48ae4740c7eca7743cc7e7b75ea"
@@ -1040,23 +1000,11 @@ deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
 version = "10.42.0+1"
 
-[[deps.Pango_jll]]
-deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "9dd97171646850ee607593965ce1f55063d8d3f9"
-uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
-version = "1.54.0+0"
-
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
 git-tree-sha1 = "8489905bcdbcfac64d1daa51ca07c0d8f0283821"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.8.1"
-
-[[deps.Peaks]]
-deps = ["Compat", "RecipesBase"]
-git-tree-sha1 = "77d181ab4d6e58f3d2d6f1643938ded358cf5c6e"
-uuid = "18e31ff7-3703-566c-8e60-38913d67486b"
-version = "0.5.2"
 
 [[deps.Pipe]]
 git-tree-sha1 = "6842804e7867b115ca9de748a0cf6b364523c16d"
@@ -1134,6 +1082,10 @@ version = "2.3.2"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[deps.Profile]]
+deps = ["Printf"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+
 [[deps.Qt6Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Vulkan_Loader_jll", "Xorg_libSM_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_cursor_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "libinput_jll", "xkbcommon_jll"]
 git-tree-sha1 = "492601870742dcd38f233b23c3ec629628c1d724"
@@ -1201,9 +1153,9 @@ version = "1.2.1"
 
 [[deps.SentinelArrays]]
 deps = ["Dates", "Random"]
-git-tree-sha1 = "90b4f68892337554d31cdcdbe19e48989f26c7e6"
+git-tree-sha1 = "ff11acffdb082493657550959d4feb4b6149e73a"
 uuid = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
-version = "1.4.3"
+version = "1.4.5"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
@@ -1292,10 +1244,10 @@ uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
 version = "1.0.1"
 
 [[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits"]
-git-tree-sha1 = "cb76cf677714c095e535e3501ac7954732aeea2d"
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
+git-tree-sha1 = "598cd7c1f68d1e205689b1c2fe65a9f85846f297"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.11.1"
+version = "1.12.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -1607,12 +1559,6 @@ deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
 version = "5.8.0+1"
 
-[[deps.libdecor_jll]]
-deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]
-git-tree-sha1 = "9bf7903af251d2050b467f76bdbe57ce541f7f4f"
-uuid = "1183f4f0-6f2a-5f1a-908b-139f9cdfea6f"
-version = "0.2.2+0"
-
 [[deps.libevdev_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "141fe65dc3efabb0b1d5ba74e91f6ad26f84cc22"
@@ -1679,35 +1625,47 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╠═0a0a94c8-653d-11ef-13fa-b98a27cb8524
-# ╠═dbc2d3f9-5d70-4733-ae40-8750a8ea04ed
-# ╠═77d5e493-08d0-4433-b8e5-0344de775b6e
-# ╠═c704e52b-e516-495c-84e1-3557466004b2
-# ╠═d67e3371-9b78-45dd-a2d0-38982080bca4
-# ╠═7b7f582c-ce95-4f6a-a6de-29c3cf16e356
-# ╠═ad79aef6-907f-4c6d-8e15-e20ecf669e3b
-# ╟─6d1f7bba-54ea-47dd-a23b-e88185e8960b
-# ╟─0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
-# ╟─1cbe30b8-eb82-4bef-b774-0d19da33863a
-# ╟─27b097d2-9989-45d3-8725-3e9a4820024e
-# ╟─e9b9d1bf-c257-45c5-93a2-25a99efaf73f
-# ╟─bc31145a-4d0c-41c9-ba8e-10af53d24bf5
-# ╟─f5859816-6659-4ce7-9e28-c20b803849ba
-# ╟─2cddcd6c-f3d0-4308-9b60-b3c70507cab5
-# ╟─7a4581aa-14a0-467b-9ecf-1f351ce95e7b
-# ╠═885a4f2a-fd99-478c-ab64-018660f620ce
-# ╠═327bf173-e909-4c0c-9cff-71efc2f6044e
-# ╟─f4733ba9-59a4-41d6-8690-dc3bcf9f7066
-# ╟─f86f903b-4418-4438-abca-afb8a8b02a9e
-# ╟─0b624019-90c2-4790-b793-4d9d3f3833db
-# ╟─9d37429c-a41b-4024-a02e-d934cd1ee48b
-# ╠═f8bf9242-71a0-4de7-b973-367dd1e42c45
-# ╠═05c0b368-be58-4ac5-ba7d-b917126b331a
-# ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
-# ╠═d44a7190-adb4-460a-949e-005d9afaed73
-# ╠═d247234b-6a81-4f7e-811a-c512fd15e142
-# ╠═79dcf062-819b-4291-8f0a-b9355493261e
-# ╠═0857c507-69fb-4a13-9f9d-0aced7908381
-# ╠═174177e9-f82d-4cf4-a396-bfea946d13b3
+# ╠═40573b1a-4901-11ef-306b-89a78a9e5e41
+# ╠═752f5ee3-4118-4795-83de-aa259b290bfc
+# ╠═0a029c32-846f-4be6-8a79-c644b2cd06eb
+# ╠═062c1d19-26f8-432a-8c4d-cd6857524241
+# ╠═4a976190-3a88-4c9e-a75f-a034739e1703
+# ╠═c6d16f8d-3a69-45af-9ffb-b0cfa8778bf1
+# ╠═403c34ef-cb53-4a58-9553-0070915654e6
+# ╠═d19c20ee-65bb-471f-bb80-919de1c7d915
+# ╠═5d888b49-3ed3-433b-9fe1-14c2c0063a76
+# ╠═a5d1cb3e-8a3e-4635-b0ac-1da7873847d7
+# ╠═b2a68013-ca4c-46c0-8888-95717baf5033
+# ╠═014cfed6-489e-4854-830d-91179e00ca21
+# ╠═628e0318-1270-4d9b-86a5-1606ef166a84
+# ╠═c020cc54-d301-4176-8a34-8630afbc5875
+# ╠═67e00493-9e1e-4c16-8d62-78be88dee802
+# ╠═858146d1-6815-454f-8dcf-2e08c09da0f6
+# ╠═99f8b994-2d66-44c3-b7cf-0a4b20ecd162
+# ╠═66afe5e8-ba30-4829-9d86-757b23a58acc
+# ╠═dfc7b40a-1a6a-47bf-b15f-03bafa6dcc6f
+# ╠═15d556d3-9ee4-4809-9d41-fb9e41761573
+# ╠═9993168f-2a9b-490a-a380-33533eabd929
+# ╠═66accd6b-8c7b-4786-a9c2-4d91f9b7f3b9
+# ╠═0279dfaa-e562-4315-ac2f-4627de9fb831
+# ╠═e0c54e80-0899-489c-89c9-c6cb2e11c83e
+# ╠═773e32bd-31c6-4e3d-8e64-03aea0c0e0bf
+# ╠═cd56f4a5-246f-42f6-8849-920fa690a605
+# ╠═8f4a5bfa-bf84-4d65-9f42-40b867e17cae
+# ╠═4ff8348a-9c8b-4ff4-98be-68500958d89d
+# ╠═e60a37b0-7b9b-408e-beef-1197a898bfbd
+# ╠═065e66b6-a878-47d1-8f84-e70d4ab10660
+# ╠═f801656d-22d9-4cab-a949-6de6918cbd89
+# ╠═0cb4d072-860c-4886-a118-b9ea16636138
+# ╠═e3d1b098-89ea-4eb5-973b-a44fdb3be8ac
+# ╠═abc468dd-8618-4191-a801-a825cc7d3675
+# ╠═5e7eda9e-0929-4b29-8692-5f5045faf0e7
+# ╠═fdf66348-3b49-4b6d-9d2d-c0de4e8f7a80
+# ╠═59f355c1-9cae-4861-bd1b-0bdac920c6d1
+# ╠═0d36fcbd-877f-4a89-a9cd-22f5c2697efa
+# ╠═2b2f63c8-28f6-4c2f-a912-3b37e2bb27b4
+# ╠═d4997422-b8b4-4787-9b76-6c304fd1980f
+# ╠═28cd1c01-18ea-4b77-ac8f-d2870c647fc5
+# ╠═6c12818e-6527-4cbd-bb76-2b3c9201211e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
