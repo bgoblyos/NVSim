@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.42
+# v0.19.45
 
 using Markdown
 using InteractiveUtils
@@ -129,6 +129,28 @@ function findODMRPeaks(freqs, signal)
 	return sort(peakFreqs)
 end
 
+# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
+begin
+	testData = jldopen("../../data/2024-09-16.jld2")
+	peakMatrix = testData["peaks"]
+	VHs = testData["VHs"]
+	IMs = testData["IMs"]
+	md"Data import"
+end
+
+# ╔═╡ 05c0b368-be58-4ac5-ba7d-b917126b331a
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+begin
+	peakMatrix = zeros(length(Bs), 8)
+	for i in 1:length(Bs)
+		peakMatrix[i,:] = findODMRPeaks(freqs, signals[i,:])
+	end
+	peakMatrix
+end
+  ╠═╡ =#
+
 # ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 function simKernel!(scores, Rxs, Rys, Rzs, rawBs, offsets, slopes, peakMatrix)
     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
@@ -223,8 +245,8 @@ end
 
 # ╔═╡ d247234b-6a81-4f7e-811a-c512fd15e142
 function fitODMR(αs, βs, γs)
-	offsets = range(-9.5, -7.5, 32)
-	slopes = range(269, 271.5, 32)
+	offsets = range(-4.5, -5, 32)
+	slopes = range(250.0, 300.0, 32)
 	scores = computeScores(αs, βs, γs, offsets, slopes)
 	min = findmin(scores)
 	bestfit = min[1]
@@ -269,30 +291,6 @@ CUDA.@profile segmentedFit(1)
 
 # ╔═╡ 174177e9-f82d-4cf4-a396-bfea946d13b3
 result = segmentedFit(10)
-
-# ╔═╡ 05c0b368-be58-4ac5-ba7d-b917126b331a
-# ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
-#=╠═╡
-begin
-	peakMatrix = zeros(length(Bs), 8)
-	for i in 1:length(Bs)
-		peakMatrix[i,:] = findODMRPeaks(freqs, signals[i,:])
-	end
-	peakMatrix
-end
-  ╠═╡ =#
-
-# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
-#=╠═╡
-begin
-	testData = jldopen("../../data/2024-09-09.jld2")
-	peakMatrix = testData["peaks"]
-	VHs = testData["VHs"]
-	IMs = testData["IMs"]
-	md"Data import"
-end
-  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
