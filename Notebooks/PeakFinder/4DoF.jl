@@ -22,6 +22,9 @@ using StaticArrays
 # ╔═╡ 7b7f582c-ce95-4f6a-a6de-29c3cf16e356
 using LinearAlgebra
 
+# ╔═╡ 0536ab28-19b0-4c68-ab5b-67f87cc5a2e2
+using ProgressLogging
+
 # ╔═╡ ad79aef6-907f-4c6d-8e15-e20ecf669e3b
 begin
 	const MHzToK = Float32(4.7991939324e-5)
@@ -75,7 +78,7 @@ const dirs = normalize.([SA_F32[1,-1,-1], SA_F32[-1,1,-1], SA_F32[-1,-1,1], SA_F
 md"#### Rotation functions"
 
 # ╔═╡ f5859816-6659-4ce7-9e28-c20b803849ba
-function Rz(t)
+function Rx(t)
 	SMatrix{3,3,Float32}(  1,       0,       0,
 	                       0,  cos(t), -sin(t),
 	                       0,  sin(t),  cos(t)  )
@@ -89,7 +92,7 @@ function Ry(t)
 end
 
 # ╔═╡ 7a4581aa-14a0-467b-9ecf-1f351ce95e7b
-function Rx(t)
+function Rz(t)
 	SMatrix{3,3,Float32}( cos(t), -sin(t),  0,
 	                      sin(t),  cos(t),  0,
 	                           0,       0,  1  )
@@ -152,17 +155,15 @@ end
   ╠═╡ =#
 
 # ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
-function simKernel!(scores, Rxs, Rys, Rzs, rawBs, offsets, slopes, peakMatrix)
+function simKernel!(scores, Rs, offsets, slopes, rawBs, peakMatrix)
     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
 	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
 	k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
 
 	if i <= size(scores)[1] && j <= size(scores)[2] && k <= size(scores)[3]
-		@inbounds Rx = Rxs[i]
-		@inbounds Ry = Rys[j]
-		@inbounds Rz = Rzs[k]
-
-		rot = Rz * Ry * Rx
+		@inbounds rot = Rs[i]
+		@inbounds offset = offsets[j]
+		@inbounds slope = slopes[k]
 
 		# Quite repetitive, but allocating the arrays for storing them more nicely
 		# would likely take up more space and be slower
@@ -175,8 +176,8 @@ function simKernel!(scores, Rxs, Rys, Rzs, rawBs, offsets, slopes, peakMatrix)
 		@inbounds dir4 = rot * dirs[4]
 		Hzeeman4 = unscaledZeeman(dir4)
 
-		for Bi in 1:length(rawBs), Oi in 1:length(offsets), Si in 1:length(slopes)
-			@inbounds B = offsets[Oi] + slopes[Si] * rawBs[Bi]
+		for Bi in 1:length(rawBs)
+			@inbounds B = offset + slope * rawBs[Bi]
 
 			# Direction 1
 			@inbounds vals1 = eigvals(Hnv + B * Hzeeman1)/GHzToK
@@ -205,7 +206,7 @@ function simKernel!(scores, Rxs, Rys, Rzs, rawBs, offsets, slopes, peakMatrix)
 
 			for y in 1:8
 				# Add the distance squared of the corresponding peaks to the score
-				@inbounds scores[i, j, k, Oi, Si] += (peakMatrix[Bi, y] - sortedPeaks[y])^2
+				@inbounds scores[i, j, k] += (peakMatrix[Bi, y] - sortedPeaks[y])^2
 			end
 		end
 	end
@@ -213,68 +214,69 @@ function simKernel!(scores, Rxs, Rys, Rzs, rawBs, offsets, slopes, peakMatrix)
 end
 
 # ╔═╡ d44a7190-adb4-460a-949e-005d9afaed73
-function computeScores(αs, βs, γs, offsets, slopes)
-	n1 = length(αs)
-	n2 = length(βs)
-	n3 = length(γs)
+function fitODMR(αs, βs, offsets, slopes)
+	n1 = length(αs) * length(βs)
+	n2 = length(offsets)
+	n3 = length(slopes)
 	
-	αs = CuArray{Float32}(αs)
-	βs = CuArray{Float32}(βs)
-	γs = CuArray{Float32}(γs)
+	dαs = CuArray{Float32}(αs)
+	dβs = CuArray{Float32}(βs)
 
-	Rxs = Rx.(αs)
-	Rys = Ry.(βs)
-	Rzs = Rz.(γs)
+	Rxs = Rx.(dαs)
+	Rys = Ry.(dβs)
+	Rs = Rys .* Rxs'
 
-	offsets = CuArray{Float32}(offsets)
-	slopes = CuArray{Float32}(slopes)
+	doffsets = CuArray{Float32}(offsets)
+	dslopes = CuArray{Float32}(slopes)
+
+	rawBs = cu(IMs)
 	
-	threads = (10,8,8)
-	bNum1 = ceil(Int, n1/10)
-	bNum2 = ceil(Int, n2/8)
-	bNum3 = ceil(Int, n3/8)
-	blocks = (bNum1, bNum2, bNum3)
+	threads = (8,8,8)
+	blocks = ceil.(Int, (n1, n2, n3) ./ threads)
 
-	scores = CUDA.zeros(Float32, n1, n2, n3, length(offsets), length(slopes))
+	scores = CUDA.zeros(Float32, n1, n2, n3)
 	
-	@cuda fastmath=true threads=threads blocks=blocks simKernel!(scores, Rxs, Rys, Rzs, cu(IMs), offsets, slopes, cu(peakMatrix))
+	@cuda fastmath=true threads=threads blocks=blocks simKernel!(scores, Rs, doffsets, dslopes, rawBs, cu(peakMatrix))
 
-	#synchronize()
-	return scores
-end
-
-# ╔═╡ d247234b-6a81-4f7e-811a-c512fd15e142
-function fitODMR(αs, βs, γs)
-	offsets = range(-4.5, -5, 32)
-	slopes = range(250.0, 300.0, 32)
-	scores = computeScores(αs, βs, γs, offsets, slopes)
 	min = findmin(scores)
 	bestfit = min[1]
 	coords = min[2]
-	α = αs[coords[1]]
-	β = βs[coords[2]]
-	γ = γs[coords[3]]
-	offset = offsets[coords[4]]
-	slope = slopes[coords[5]]
-	return (bestfit = bestfit, orientation = (α = α, β = β, γ = γ, offset = offset, slope = slope))
+
+	α = αs[((coords[1] - 1) % length(αs)) + 1]
+	β = βs[cld(coords[1], length(αs))]
+	offset = offsets[coords[2]]
+	slope = slopes[coords[3]]
+	
+	return (
+		bestfit = bestfit,
+		orientation = (
+			α = α,
+			β = β,
+			offset = offset,
+			slope = slope
+		)
+	)
+
 end
 
 # ╔═╡ 79dcf062-819b-4291-8f0a-b9355493261e
-function segmentedFit(n)
-	blockSize = 32
+function segmentedFit(n, ocenter, owidth, scenter, swidth)
+	blockSize = 1014 # Batch size for angles
 	totalSize = blockSize * n
+	linearSize = 32 # Batch size for linear coefficients
 
 	bestFit = Inf
 	bestOrientation = missing
 	
 	angles = range(0, π, totalSize + 1)[2:end]
+	offsets = range(ocenter - owidth, ocenter + owidth, linearSize)
+	slopes = range(scenter - swidth, scenter + swidth, linearSize)
 
-	for i in 1:n, j in 1:n, k in 1:n
+	@progress for i in 1:n, j in 1:n
 		iSlice = (((i - 1) * blockSize) + 1):(i * blockSize)
 		jSlice = (((j - 1) * blockSize) + 1):(j * blockSize)
-		kSlice = (((k - 1) * blockSize) + 1):(k * blockSize)
 
-		fit = fitODMR(angles[iSlice], angles[jSlice], angles[kSlice])
+		fit = fitODMR(angles[iSlice], angles[jSlice], offsets, slopes)
 
 		if fit.bestfit < bestFit
 			bestFit = fit.bestfit
@@ -287,10 +289,10 @@ function segmentedFit(n)
 end
 
 # ╔═╡ 0857c507-69fb-4a13-9f9d-0aced7908381
-CUDA.@profile segmentedFit(1)
+CUDA.@profile segmentedFit(1, -1.9, 0.2, 262.4, 1)
 
 # ╔═╡ 174177e9-f82d-4cf4-a396-bfea946d13b3
-result = segmentedFit(10)
+result = segmentedFit(10, -1.9, 0.2, 262.4, 1)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -300,6 +302,7 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
@@ -307,6 +310,7 @@ CUDA = "~5.4.2"
 JLD2 = "~0.4.50"
 Peaks = "~0.5.2"
 Plots = "~1.40.5"
+ProgressLogging = "~0.1.4"
 StaticArrays = "~1.9.7"
 """
 
@@ -314,9 +318,9 @@ StaticArrays = "~1.9.7"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.4"
+julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "4ba3526684466f0996a19faea9834308a4a1024b"
+project_hash = "419d03263959e03e0407a14692ec986bd7cc4cc2"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1134,6 +1138,12 @@ version = "2.3.2"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[deps.ProgressLogging]]
+deps = ["Logging", "SHA", "UUIDs"]
+git-tree-sha1 = "80d919dee55b9c50e8d9e2da5eeafff3fe58b539"
+uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
+version = "0.1.4"
+
 [[deps.Qt6Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Vulkan_Loader_jll", "Xorg_libSM_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_cursor_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "libinput_jll", "xkbcommon_jll"]
 git-tree-sha1 = "492601870742dcd38f233b23c3ec629628c1d724"
@@ -1605,7 +1615,7 @@ version = "0.15.1+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+1"
+version = "5.11.0+0"
 
 [[deps.libdecor_jll]]
 deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]
@@ -1685,7 +1695,8 @@ version = "1.4.1+1"
 # ╠═c704e52b-e516-495c-84e1-3557466004b2
 # ╠═d67e3371-9b78-45dd-a2d0-38982080bca4
 # ╠═7b7f582c-ce95-4f6a-a6de-29c3cf16e356
-# ╠═ad79aef6-907f-4c6d-8e15-e20ecf669e3b
+# ╠═0536ab28-19b0-4c68-ab5b-67f87cc5a2e2
+# ╟─ad79aef6-907f-4c6d-8e15-e20ecf669e3b
 # ╟─6d1f7bba-54ea-47dd-a23b-e88185e8960b
 # ╟─0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
 # ╟─1cbe30b8-eb82-4bef-b774-0d19da33863a
@@ -1695,8 +1706,8 @@ version = "1.4.1+1"
 # ╟─f5859816-6659-4ce7-9e28-c20b803849ba
 # ╟─2cddcd6c-f3d0-4308-9b60-b3c70507cab5
 # ╟─7a4581aa-14a0-467b-9ecf-1f351ce95e7b
-# ╠═885a4f2a-fd99-478c-ab64-018660f620ce
-# ╠═327bf173-e909-4c0c-9cff-71efc2f6044e
+# ╟─885a4f2a-fd99-478c-ab64-018660f620ce
+# ╟─327bf173-e909-4c0c-9cff-71efc2f6044e
 # ╟─f4733ba9-59a4-41d6-8690-dc3bcf9f7066
 # ╟─f86f903b-4418-4438-abca-afb8a8b02a9e
 # ╟─0b624019-90c2-4790-b793-4d9d3f3833db
@@ -1705,7 +1716,6 @@ version = "1.4.1+1"
 # ╠═05c0b368-be58-4ac5-ba7d-b917126b331a
 # ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 # ╠═d44a7190-adb4-460a-949e-005d9afaed73
-# ╠═d247234b-6a81-4f7e-811a-c512fd15e142
 # ╠═79dcf062-819b-4291-8f0a-b9355493261e
 # ╠═0857c507-69fb-4a13-9f9d-0aced7908381
 # ╠═174177e9-f82d-4cf4-a396-bfea946d13b3

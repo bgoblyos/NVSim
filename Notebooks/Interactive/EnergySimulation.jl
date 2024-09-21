@@ -14,9 +14,6 @@ macro bind(def, element)
     end
 end
 
-# ╔═╡ 3369b471-4ea6-45eb-8c44-70e553ce53bc
-push!(LOAD_PATH, pwd());
-
 # ╔═╡ 5c6e885c-2410-4ebf-81f3-0739d49c6ce5
 using StaticArrays
 
@@ -29,11 +26,58 @@ using Plots
 # ╔═╡ 937dfb1a-df70-4660-9914-9acb6d1f1e63
 using BenchmarkTools
 
-# ╔═╡ b5c2e168-4811-11ef-3dbb-cdd3228e10be
-using Eigenstates
-
 # ╔═╡ d4f29a6d-77d6-43ce-af7a-f799080d2ea7
 import PlutoUI: combine, Slider
+
+# ╔═╡ 69474a6d-c3f3-4323-b7db-f2abf2d28538
+begin
+	const MHzToK = 4.7991939324e-5
+	const GHzToK = 4.7991939324e-2
+	const gToK = 6.71714e-5
+	const D = 2875
+	const E = 0
+	const g = 2.0026
+end;
+
+# ╔═╡ 32c0ffd1-bf4b-450b-a116-09af6f29b8a5
+const spinX = SMatrix{3,3}([ 0 1 0
+                             1 0 1
+                             0 1 0 ] / sqrt(2))
+
+# ╔═╡ d1e01831-4fc7-41d0-8cb9-5701c7b715d2
+const spinY = SMatrix{3,3}([  0 -im   0
+                             im   0 -im
+                              0   im   0 ] / sqrt(2))
+
+# ╔═╡ f015ac54-d05b-43f1-95d7-76455b0ebf61
+const spinZ = SMatrix{3,3}([ 1  0  0
+                             0  0  0
+                             0  0 -1 ])
+
+# ╔═╡ 0d93a021-add6-4489-86b1-9b5374348be4
+spinVector = @SVector [spinX, spinY, spinZ]
+
+# ╔═╡ 6d0fe41f-c668-4e7a-9fc5-1a34454384eb
+begin
+	const spinX2 = spinX^2
+	const spinY2 = spinY^2
+	const spinZ2 = spinZ^2
+end
+
+# ╔═╡ df982852-09d0-4e95-8841-8190b2160b94
+Hnv = begin
+    d = D * (spinZ2 - (spinX2 + spinY2 + spinZ2)/3)
+    e = E * (spinX2 - spinY2)
+    MHzToK * (d + e)
+end
+
+# ╔═╡ 3369b471-4ea6-45eb-8c44-70e553ce53bc
+function eigenStates(dir, B)
+	    Hzeeman = B * gToK * g * sum(spinVector .* dir)
+    H = Hzeeman + Hnv
+    eigenvals = eigvals(H)
+    return eigenvals / GHzToK
+end
 
 # ╔═╡ 876723c4-4a25-444d-a13a-62ce5a028596
 Bs = range(0,1500,1000)
@@ -66,7 +110,7 @@ end
 
 # ╔═╡ 028027d1-b482-484a-990e-5b7abec258de
 function plotRotated(angles)
-	original = SA_F64[0, 0, 1]
+	original = SA_F64[1, 0, 1]
 	rotated = rotationMatrix(angles.α, angles.β, angles.γ) * original
 	println(rotated)
 	plotDirection(rotated)
@@ -124,7 +168,7 @@ StaticArrays = "~1.9.7"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.4"
+julia_version = "1.10.5"
 manifest_format = "2.0"
 project_hash = "a667ef8d5bec20336f806f63e4e0e7553c21764b"
 
@@ -244,6 +288,12 @@ version = "0.18.20"
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
+[[deps.Dbus_jll]]
+deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "fc173b380865f70627d7dd1190dc2fce6cc105af"
+uuid = "ee1fde0b-3d02-5ea6-8484-8dfef6360eab"
+version = "1.14.10+0"
+
 [[deps.DelimitedFiles]]
 deps = ["Mmap"]
 git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
@@ -324,7 +374,7 @@ uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.14+0"
 
 [[deps.GLFW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll", "xkbcommon_jll"]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll", "libdecor_jll", "xkbcommon_jll"]
 git-tree-sha1 = "3f74912a156096bd8fdbef211eff66ab446e7297"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.4.0+0"
@@ -671,6 +721,12 @@ version = "1.6.3"
 deps = ["Artifacts", "Libdl"]
 uuid = "efcefdf7-47ab-520b-bdef-62a2eaa19f15"
 version = "10.42.0+1"
+
+[[deps.Pango_jll]]
+deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "9dd97171646850ee607593965ce1f55063d8d3f9"
+uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
+version = "1.54.0+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -1175,7 +1231,13 @@ version = "0.15.1+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+1"
+version = "5.11.0+0"
+
+[[deps.libdecor_jll]]
+deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]
+git-tree-sha1 = "9bf7903af251d2050b467f76bdbe57ce541f7f4f"
+uuid = "1183f4f0-6f2a-5f1a-908b-139f9cdfea6f"
+version = "0.2.2+0"
 
 [[deps.libevdev_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1248,8 +1310,14 @@ version = "1.4.1+1"
 # ╠═9aa760fb-99c9-4780-a9e6-2b8a6a938820
 # ╠═937dfb1a-df70-4660-9914-9acb6d1f1e63
 # ╠═d4f29a6d-77d6-43ce-af7a-f799080d2ea7
+# ╠═69474a6d-c3f3-4323-b7db-f2abf2d28538
+# ╠═32c0ffd1-bf4b-450b-a116-09af6f29b8a5
+# ╠═d1e01831-4fc7-41d0-8cb9-5701c7b715d2
+# ╠═f015ac54-d05b-43f1-95d7-76455b0ebf61
+# ╠═0d93a021-add6-4489-86b1-9b5374348be4
+# ╠═6d0fe41f-c668-4e7a-9fc5-1a34454384eb
+# ╠═df982852-09d0-4e95-8841-8190b2160b94
 # ╠═3369b471-4ea6-45eb-8c44-70e553ce53bc
-# ╠═b5c2e168-4811-11ef-3dbb-cdd3228e10be
 # ╠═876723c4-4a25-444d-a13a-62ce5a028596
 # ╠═ae524e28-4a06-43f0-9051-f2efca5504d7
 # ╠═434c194a-0c57-47b8-bf55-303435f7e26b
