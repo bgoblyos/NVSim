@@ -135,7 +135,7 @@ end
 # ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
 begin
 	testData = jldopen("../../data/2024-09-16.jld2")
-	peakMatrix = testData["peaks"]
+	const peakVector = SVector{8, Float32}(testData["peaks"][4,:])
 	VHs = testData["VHs"]
 	IMs = testData["IMs"]
 	md"Data import"
@@ -154,16 +154,42 @@ begin
 end
   ╠═╡ =#
 
+# ╔═╡ 23a93340-5f79-47ec-b135-0f77701306be
+function calculateZeemans!(Zs, Rxs, Rys)
+    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+
+	if i <= size(scores)[1] && j <= size(scores)[2] && k <= size(scores)[3]
+		@inbounds rot = Rys[j] * Rxs[i]
+
+		@inbounds dir1 = rot * dirs[1]
+		Hzeeman1 = unscaledZeeman(dir1)
+		@inbounds dir2 = rot * dirs[2]
+		Hzeeman2 = unscaledZeeman(dir2)
+		@inbounds dir3 = rot * dirs[3]
+		Hzeeman3 = unscaledZeeman(dir3)
+		@inbounds dir4 = rot * dirs[4]
+		Hzeeman4 = unscaledZeeman(dir4)
+
+		@inbounds Zs[i, j] = SVector(
+			Hzeeman1,
+			Hzeeman2,
+			Hzeeman3,
+			Hzeeman4
+		)
+	end
+    return
+end
+
 # ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
-function simKernel!(scores, Rs, offsets, slopes, rawBs, peakMatrix)
+function simKernel!(scores, Rxs, Rys, Bs, peakVector)
     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
 	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
 	k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
 
 	if i <= size(scores)[1] && j <= size(scores)[2] && k <= size(scores)[3]
-		@inbounds rot = Rs[i]
-		@inbounds offset = offsets[j]
-		@inbounds slope = slopes[k]
+		@inbounds rot = Rys[j] * Rxs[i]
+		@inbounds B = Bs[k]
 
 		# Quite repetitive, but allocating the arrays for storing them more nicely
 		# would likely take up more space and be slower
@@ -176,107 +202,99 @@ function simKernel!(scores, Rs, offsets, slopes, rawBs, peakMatrix)
 		@inbounds dir4 = rot * dirs[4]
 		Hzeeman4 = unscaledZeeman(dir4)
 
-		for Bi in 1:length(rawBs)
-			@inbounds B = offset + slope * rawBs[Bi]
+		# Direction 1
+		@inbounds vals1 = eigvals(Hnv + B * Hzeeman1)/GHzToK
 
-			# Direction 1
-			@inbounds vals1 = eigvals(Hnv + B * Hzeeman1)/GHzToK
+		# Direction 2
+		@inbounds vals2 = eigvals(Hnv + B * Hzeeman2)/GHzToK
 
-			# Direction 2
-			@inbounds vals2 = eigvals(Hnv + B * Hzeeman2)/GHzToK
+		# Direction 3
+		@inbounds vals3 = eigvals(Hnv + B * Hzeeman3)/GHzToK
 
-			# Direction 3
-			@inbounds vals3 = eigvals(Hnv + B * Hzeeman3)/GHzToK
+		# Direction 4
+		@inbounds vals4 = eigvals(Hnv + B * Hzeeman4)/GHzToK
 
-			# Direction 4
-			@inbounds vals4 = eigvals(Hnv + B * Hzeeman4)/GHzToK
+		@inbounds peaks = SVector(
+			abs(vals1[1] - vals1[3]),
+			abs(vals1[1] - vals1[2]),
+			abs(vals2[1] - vals2[3]),
+			abs(vals2[1] - vals2[2]),
+			abs(vals3[1] - vals3[3]),
+			abs(vals3[1] - vals3[2]),
+			abs(vals4[1] - vals4[3]),
+			abs(vals4[1] - vals4[2])
+		)
 
-			@inbounds peaks = SVector(
-				abs(vals1[1] - vals1[3]),
-				abs(vals1[1] - vals1[2]),
-				abs(vals2[1] - vals2[3]),
-				abs(vals2[1] - vals2[2]),
-				abs(vals3[1] - vals3[3]),
-				abs(vals3[1] - vals3[2]),
-				abs(vals4[1] - vals4[3]),
-				abs(vals4[1] - vals4[2])
-			)
+		sortedPeaks = sort(peaks)
 
-			sortedPeaks = sort(peaks)
-
-			for y in 1:8
-				# Add the distance squared of the corresponding peaks to the score
-				@inbounds scores[i, j, k] += (peakMatrix[Bi, y] - sortedPeaks[y])^2
-			end
+		for y in 1:8
+			# Add the distance squared of the corresponding peaks to the score
+			@inbounds scores[i, j, k] += (peakVector[y] - sortedPeaks[y])^2
 		end
 	end
     return
 end
 
 # ╔═╡ d44a7190-adb4-460a-949e-005d9afaed73
-function fitODMR(αs, βs, offsets, slopes)
-	n1 = length(αs) * length(βs)
-	n2 = length(offsets)
-	n3 = length(slopes)
+function fitODMR(αs, βs, Bs)
+	n1 = length(αs)
+	n2 = length(βs)
+	n3 = length(Bs)
 	
 	dαs = CuArray{Float32}(αs)
 	dβs = CuArray{Float32}(βs)
 
 	Rxs = Rx.(dαs)
 	Rys = Ry.(dβs)
-	Rs = Rys .* Rxs'
 
-	doffsets = CuArray{Float32}(offsets)
-	dslopes = CuArray{Float32}(slopes)
-
-	rawBs = cu(IMs)
+	dBs = cu(Bs)
 	
 	threads = (8,8,8)
 	blocks = ceil.(Int, (n1, n2, n3) ./ threads)
 
 	scores = CUDA.zeros(Float32, n1, n2, n3)
 	
-	@cuda fastmath=true threads=threads blocks=blocks simKernel!(scores, Rs, doffsets, dslopes, rawBs, cu(peakMatrix))
+	@cuda fastmath=true threads=threads blocks=blocks simKernel!(scores, Rxs, Rys, Bs, cu(peakVector))
 
 	min = findmin(scores)
 	bestfit = min[1]
 	coords = min[2]
 
-	α = αs[((coords[1] - 1) % length(αs)) + 1]
-	β = βs[cld(coords[1], length(αs))]
-	offset = offsets[coords[2]]
-	slope = slopes[coords[3]]
+	α = αs[coords[1]]
+	β = βs[coords[2]]
+	B = Bs[coords[3]]
 	
 	return (
 		bestfit = bestfit,
 		orientation = (
 			α = α,
 			β = β,
-			offset = offset,
-			slope = slope
+			B = B
 		)
 	)
 
 end
 
+# ╔═╡ 35573e35-7bb0-4f06-9095-e2d0e4717ff6
+fitODMR(range(0.00000001, π, 256), range(0.00000001, π, 256), range(200,215,256))
+
 # ╔═╡ 79dcf062-819b-4291-8f0a-b9355493261e
-function segmentedFit(n, ocenter, owidth, scenter, swidth)
-	blockSize = 1014 # Batch size for angles
+function segmentedFit(n, Bmin, Bmax)
+	blockSize = 1014 # Batch size
 	totalSize = blockSize * n
-	linearSize = 32 # Batch size for linear coefficients
 
 	bestFit = Inf
 	bestOrientation = missing
 	
 	angles = range(0, π, totalSize + 1)[2:end]
-	offsets = range(ocenter - owidth, ocenter + owidth, linearSize)
-	slopes = range(scenter - swidth, scenter + swidth, linearSize)
+	Bs = range(Bmin, Bmax, totalSize)
 
-	@progress for i in 1:n, j in 1:n
+	@progress for i in 1:n, j in 1:n, k in 1:n
 		iSlice = (((i - 1) * blockSize) + 1):(i * blockSize)
 		jSlice = (((j - 1) * blockSize) + 1):(j * blockSize)
+		kSlice = (((k - 1) * blockSize) + 1):(k * blockSize)
 
-		fit = fitODMR(angles[iSlice], angles[jSlice], offsets, slopes)
+		fit = fitODMR(angles[iSlice], angles[jSlice], Bs[kSlice])
 
 		if fit.bestfit < bestFit
 			bestFit = fit.bestfit
@@ -289,10 +307,10 @@ function segmentedFit(n, ocenter, owidth, scenter, swidth)
 end
 
 # ╔═╡ 0857c507-69fb-4a13-9f9d-0aced7908381
-CUDA.@profile segmentedFit(1, -1.9, 0.2, 262.4, 1)
+CUDA.@profile segmentedFit(1, 200, 215)
 
 # ╔═╡ 174177e9-f82d-4cf4-a396-bfea946d13b3
-result = segmentedFit(10, -1.9, 0.2, 262.4, 1)
+result = segmentedFit(2, 0, 500)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1714,8 +1732,10 @@ version = "1.4.1+1"
 # ╟─9d37429c-a41b-4024-a02e-d934cd1ee48b
 # ╠═f8bf9242-71a0-4de7-b973-367dd1e42c45
 # ╠═05c0b368-be58-4ac5-ba7d-b917126b331a
+# ╠═23a93340-5f79-47ec-b135-0f77701306be
 # ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 # ╠═d44a7190-adb4-460a-949e-005d9afaed73
+# ╠═35573e35-7bb0-4f06-9095-e2d0e4717ff6
 # ╠═79dcf062-819b-4291-8f0a-b9355493261e
 # ╠═0857c507-69fb-4a13-9f9d-0aced7908381
 # ╠═174177e9-f82d-4cf4-a396-bfea946d13b3

@@ -181,7 +181,13 @@ Bs = range(-150,150,200)
 matrix = wholeCrystalPeaks(Bs, freqs, α, β, γ);
 
 # ╔═╡ 2cbf8a77-414d-49bb-8421-95eb2d70389c
-heatmap((freqs)u"GHz", (Bs)u"Gs", matrix)
+begin
+	local plt = heatmap(freqs, Bs, matrix)
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "B (G)")
+	savefig(plt, "/tmp/heatmap_sim.pdf")
+	plt
+end
 
 # ╔═╡ 051012ef-b405-40b9-b021-36be1e762f2e
 begin
@@ -189,6 +195,7 @@ begin
 	measurement = raw["data"] * 0.2e5
 	mFreqs = raw["xaxis"]
 	mBs = raw["yaxis"] * 200 .- 20
+	mIs = raw["yaxis"]
 end
 
 # ╔═╡ 2244cb3f-34d0-4c7c-946c-d02dfef2e51b
@@ -247,7 +254,13 @@ heatmap((mFreqs)u"GHz", (mBs)u"Gs", masked)
 heatmap((mFreqs)u"GHz", (mBs)u"Gs", mMatrix)
 
 # ╔═╡ 6ca31076-ed40-4b27-a6dd-b64ff1f948b2
-heatmap((mFreqs)u"GHz", (mBs)u"Gs", measurement)
+begin
+	local plt = heatmap(mFreqs, mIs, measurement)
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Elektromágnes áramerősség (A)")
+	savefig(plt, "/tmp/heatmap_meas.pdf")
+	plt
+end
 
 # ╔═╡ 60505a0d-6e2e-4d10-8202-9c9eace9bb23
 begin wholeCrystalPeaks(Bs, freqs, α, β, γ)
@@ -266,6 +279,9 @@ begin wholeCrystalPeaks(Bs, freqs, α, β, γ)
 
 	vcat(peaks1[1], peaks1[2], peaks2[1], peaks2[2], peaks3[1], peaks3[2], peaks4[1], peaks4[2])
 end
+
+# ╔═╡ 39e7aedd-49bf-49df-9ae6-0516d24e107c
+unscaledZeeman([1,0,0])
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -289,7 +305,7 @@ Unitful = "~1.21.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.4"
+julia_version = "1.10.5"
 manifest_format = "2.0"
 project_hash = "d56b7f3718fb9c3cb29cce74c382d9f0e670faaa"
 
@@ -1360,7 +1376,7 @@ version = "0.15.1+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+1"
+version = "5.11.0+0"
 
 [[deps.libdecor_jll]]
 deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]
@@ -1481,5 +1497,6 @@ version = "1.4.1+1"
 # ╠═e84b32d1-516d-4483-85a4-a90121c90616
 # ╠═6ca31076-ed40-4b27-a6dd-b64ff1f948b2
 # ╠═60505a0d-6e2e-4d10-8202-9c9eace9bb23
+# ╠═39e7aedd-49bf-49df-9ae6-0516d24e107c
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
