@@ -10,9 +10,6 @@ using Plots
 # ╔═╡ dbc2d3f9-5d70-4733-ae40-8750a8ea04ed
 using CUDA
 
-# ╔═╡ 77d5e493-08d0-4433-b8e5-0344de775b6e
-using Peaks
-
 # ╔═╡ c704e52b-e516-495c-84e1-3557466004b2
 using JLD2
 
@@ -22,8 +19,8 @@ using StaticArrays
 # ╔═╡ 7b7f582c-ce95-4f6a-a6de-29c3cf16e356
 using LinearAlgebra
 
-# ╔═╡ 0536ab28-19b0-4c68-ab5b-67f87cc5a2e2
-using ProgressLogging
+# ╔═╡ be708808-752e-4aa5-a315-0d64593d30e7
+using BenchmarkTools
 
 # ╔═╡ ad79aef6-907f-4c6d-8e15-e20ecf669e3b
 begin
@@ -136,8 +133,6 @@ end
 begin
 	testData = jldopen("../../data/2024-09-16.jld2")
 	const peakVector = SVector{8, Float32}(testData["peaks"][4,:])
-	VHs = testData["VHs"]
-	IMs = testData["IMs"]
 	md"Data import"
 end
 
@@ -154,9 +149,9 @@ begin
 end
   ╠═╡ =#
 
-# ╔═╡ 23a93340-5f79-47ec-b135-0f77701306be
-function calculateZeemans(Rx, Ry)
-	rot = Rx * Ry
+# ╔═╡ 6939da22-069d-4a7c-8dcc-26204e60fdd0
+function calculateZeemansNoRot(α, β)
+	rot = Ry(β) * Rx(α)
 	return SVector(
 		unscaledZeeman(rot * dirs[1]),
 		unscaledZeeman(rot * dirs[2]),
@@ -165,8 +160,19 @@ function calculateZeemans(Rx, Ry)
 	)
 end
 
-# ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
-function simKernel!(scores, Hzs, Bs)
+# ╔═╡ 1b21a2c5-e62d-4753-865f-ad0fe6efa800
+function calculateZeemans(Rx, Ry)
+	rot = Ry * Rx
+	return SVector(
+		unscaledZeeman(rot * dirs[1]),
+		unscaledZeeman(rot * dirs[2]),
+		unscaledZeeman(rot * dirs[3]),
+		unscaledZeeman(rot * dirs[4]),
+	)
+end
+
+# ╔═╡ 0322daf5-4977-407a-a1ac-f9fef2dee3a5
+function preZeeman!(scores, Hzs, Bs)
     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
 	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
 	k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
@@ -208,102 +214,261 @@ function simKernel!(scores, Hzs, Bs)
     return
 end
 
-# ╔═╡ d44a7190-adb4-460a-949e-005d9afaed73
-function fitODMR(αs, βs, Bs)
-	n1 = length(αs)
-	n2 = length(βs)
-	n3 = length(Bs)
+# ╔═╡ d3c0c5ee-b958-4e1b-bf15-8b359c987c54
+function preZeeman(Bmax)
+	n = 1024
 	
-	dαs = CuArray{Float32}(αs)
-	dβs = CuArray{Float32}(βs)
+	dαs = CuArray{Float32}(range(0, π, n))
+	dβs = CuArray{Float32}(range(0, π, n))
 
+	dBs = CuArray{Float32}(range(0, Bmax, n))
+	
 	Rxs = Rx.(dαs)
 	Rys = Ry.(dβs)
 
 	Hzs = calculateZeemans.(Rxs, Rys')
-
-	dBs = CuArray{Float32}(Bs)
 	
 	threads = (8,8,4)
-	blocks = ceil.(Int, (n1, n2, n3) ./ threads)
+	blocks = ceil.(Int, (n, n, n) ./ threads)
 
-	scores = CUDA.zeros(Float32, n1, n2, n3)
+	scores = CUDA.zeros(Float32, n, n, n)
 	
-	@cuda fastmath=true threads=threads blocks=blocks simKernel!(scores, Hzs, Bs)
+	@cuda fastmath=true threads=threads blocks=blocks preZeeman!(scores, Hzs, dBs)
 
-	min = findmin(scores)
-	bestfit = min[1]
-	coords = min[2]
-
-	α = αs[coords[1]]
-	β = βs[coords[2]]
-	B = Bs[coords[3]]
-	
-	return (
-		bestfit = bestfit,
-		orientation = (
-			α = α,
-			β = β,
-			B = B
-		)
-	)
-
+	return findmin(scores)
 end
 
-# ╔═╡ 35573e35-7bb0-4f06-9095-e2d0e4717ff6
-fitODMR(range(0.00000001, π, 256), range(0.00000001, π, 256), range(200,215,256))
-
-# ╔═╡ 79dcf062-819b-4291-8f0a-b9355493261e
-function segmentedFit(n, Bmin, Bmax)
-	blockSize = 1014 # Batch size
-	totalSize = blockSize * n
-
-	bestFit = Inf
-	bestOrientation = missing
+# ╔═╡ 9d586612-af93-42ca-a0a0-259d8d5bd4db
+function preZeemanNoRot(Bmax)
+	n = 1024
 	
-	angles = range(0, π, totalSize + 1)[2:end]
-	Bs = range(Bmin, Bmax, totalSize)
+	dαs = CuArray{Float32}(range(0, π, n))
+	dβs = CuArray{Float32}(range(0, π, n))
 
-	@progress for i in 1:n, j in 1:n, k in 1:n
-		iSlice = (((i - 1) * blockSize) + 1):(i * blockSize)
-		jSlice = (((j - 1) * blockSize) + 1):(j * blockSize)
-		kSlice = (((k - 1) * blockSize) + 1):(k * blockSize)
+	dBs = CuArray{Float32}(range(0, Bmax, n))
 
-		fit = fitODMR(angles[iSlice], angles[jSlice], Bs[kSlice])
+	Hzs = calculateZeemansNoRot.(dαs, dβs')
+	
+	threads = (8,8,4)
+	blocks = ceil.(Int, (n, n, n) ./ threads)
 
-		if fit.bestfit < bestFit
-			bestFit = fit.bestfit
-			bestOrientation = fit.orientation
+	scores = CUDA.zeros(Float32, n, n, n)
+	
+	@cuda fastmath=true threads=threads blocks=blocks preZeeman!(scores, Hzs, dBs)
+
+	return findmin(scores)
+end
+
+# ╔═╡ 64a24c5a-cfb0-40c3-b486-22452ef56867
+function noPrep!(scores, αs, βs, Bs)
+    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+	k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+
+	if i <= size(scores)[1] && j <= size(scores)[2] && k <= size(scores)[3]
+		@inbounds α = αs[i]
+		@inbounds β = βs[j]
+		@inbounds B = Bs[k]
+
+		rot = Ry(β) * Rx(α)
+
+		@inbounds dir1 = rot * dirs[1]
+		Hzeeman1 = unscaledZeeman(dir1)
+		@inbounds dir2 = rot * dirs[2]
+		Hzeeman2 = unscaledZeeman(dir2)
+		@inbounds dir3 = rot * dirs[3]
+		Hzeeman3 = unscaledZeeman(dir3)
+		@inbounds dir4 = rot * dirs[4]
+		Hzeeman4 = unscaledZeeman(dir4)
+
+		# Direction 1
+		@inbounds vals1 = eigvals(Hnv + B * Hzeeman1)/GHzToK
+
+		# Direction 2
+		@inbounds vals2 = eigvals(Hnv + B * Hzeeman2)/GHzToK
+
+		# Direction 3
+		@inbounds vals3 = eigvals(Hnv + B * Hzeeman3)/GHzToK
+
+		# Direction 4
+		@inbounds vals4 = eigvals(Hnv + B * Hzeeman4)/GHzToK
+
+		@inbounds peaks = SVector(
+			abs(vals1[1] - vals1[3]),
+			abs(vals1[1] - vals1[2]),
+			abs(vals2[1] - vals2[3]),
+			abs(vals2[1] - vals2[2]),
+			abs(vals3[1] - vals3[3]),
+			abs(vals3[1] - vals3[2]),
+			abs(vals4[1] - vals4[3]),
+			abs(vals4[1] - vals4[2])
+		)
+
+		sortedPeaks = sort(peaks)
+
+		for y in 1:8
+			# Add the distance squared of the corresponding peaks to the score
+			@inbounds scores[i, j, k] += (peakVector[y] - sortedPeaks[y])^2
 		end
 	end
-
-	return (bestfit = bestFit, orientation = bestOrientation)
-		
+    return
 end
 
-# ╔═╡ 0857c507-69fb-4a13-9f9d-0aced7908381
-CUDA.@profile segmentedFit(1, 200, 215)
+# ╔═╡ e7a2fa38-40d4-48ad-ab2b-d112ca1956a8
+function noPrep(Bmax)
+	n = 1024
+	
+	dαs = CuArray{Float32}(range(0, π, n))
+	dβs = CuArray{Float32}(range(0, π, n))
 
-# ╔═╡ 174177e9-f82d-4cf4-a396-bfea946d13b3
-result = segmentedFit(2, 0, 500)
+	dBs = CuArray{Float32}(range(0, Bmax, n))
+	
+	threads = (8,8,14)
+	blocks = ceil.(Int, (n, n, n) ./ threads)
+
+	scores = CUDA.zeros(Float32, n, n, n)
+	
+	@cuda fastmath=true threads=threads blocks=blocks noPrep!(scores, dαs, dβs, dBs)
+
+	return findmin(scores)
+end
+
+# ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
+function preRotation!(scores, Rxs, Rys, Bs)
+    i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+	k = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+
+	if i <= size(scores)[1] && j <= size(scores)[2] && k <= size(scores)[3]
+		@inbounds rot = Rys[j] * Rxs[i]
+		@inbounds B = Bs[k]
+
+		@inbounds dir1 = rot * dirs[1]
+		Hzeeman1 = unscaledZeeman(dir1)
+		@inbounds dir2 = rot * dirs[2]
+		Hzeeman2 = unscaledZeeman(dir2)
+		@inbounds dir3 = rot * dirs[3]
+		Hzeeman3 = unscaledZeeman(dir3)
+		@inbounds dir4 = rot * dirs[4]
+		Hzeeman4 = unscaledZeeman(dir4)
+
+		# Direction 1
+		@inbounds vals1 = eigvals(Hnv + B * Hzeeman1)/GHzToK
+
+		# Direction 2
+		@inbounds vals2 = eigvals(Hnv + B * Hzeeman2)/GHzToK
+
+		# Direction 3
+		@inbounds vals3 = eigvals(Hnv + B * Hzeeman3)/GHzToK
+
+		# Direction 4
+		@inbounds vals4 = eigvals(Hnv + B * Hzeeman4)/GHzToK
+
+		@inbounds peaks = SVector(
+			abs(vals1[1] - vals1[3]),
+			abs(vals1[1] - vals1[2]),
+			abs(vals2[1] - vals2[3]),
+			abs(vals2[1] - vals2[2]),
+			abs(vals3[1] - vals3[3]),
+			abs(vals3[1] - vals3[2]),
+			abs(vals4[1] - vals4[3]),
+			abs(vals4[1] - vals4[2])
+		)
+
+		sortedPeaks = sort(peaks)
+
+		for y in 1:8
+			# Add the distance squared of the corresponding peaks to the score
+			@inbounds scores[i, j, k] += (peakVector[y] - sortedPeaks[y])^2
+		end
+	end
+    return
+end
+
+# ╔═╡ d44a7190-adb4-460a-949e-005d9afaed73
+function preRotation(Bmax)
+	n = 1024
+	
+	dαs = CuArray{Float32}(range(0, π, n))
+	dβs = CuArray{Float32}(range(0, π, n))
+
+	Rxs = Rx.(dαs)
+	Rys = Ry.(dβs)
+
+	dBs = CuArray{Float32}(range(0, Bmax, n))
+	
+	threads = (8,8,14)
+	blocks = ceil.(Int, (n, n, n) ./ threads)
+
+	scores = CUDA.zeros(Float32, n, n, n)
+	
+	@cuda fastmath=true threads=threads blocks=blocks preRotation!(scores, Rxs, Rys, dBs)
+
+	return findmin(scores)
+end
+
+# ╔═╡ 206c3fc8-502f-4987-8288-9d15f68c2d8d
+CUDA.@time preZeeman()
+
+# ╔═╡ 3586d0fa-68c5-470a-91fe-ec47d3306c4a
+md"""
+## Redundant rotation, redundant Zeeman
+"""
+
+# ╔═╡ d758c3bc-f325-46b1-af08-d2fc6e14ecff
+CUDA.@time noPrep(500)
+
+# ╔═╡ 86ab4d01-b73a-4f59-8ce2-9485ef981f32
+@benchmark (CUDA.@sync noPrep(x)) samples=100 seconds = 300 setup=(x = rand((0:500)))
+
+# ╔═╡ aab89c5e-d4bc-4589-9eab-af3c1715201f
+md"""
+## Precalculated rotation, redundant Zeeman
+"""
+
+# ╔═╡ 85ba0738-dba9-4902-9ade-5baf34f07571
+CUDA.@time preRotation(500)
+
+# ╔═╡ c688d926-c9a1-447d-945e-d526daa72873
+@benchmark (CUDA.@sync preRotation(x)) samples=100 seconds = 300 setup=(x = rand((0:500)))
+
+# ╔═╡ 9107dc3b-d863-4873-9d76-8fabf149afab
+md"""
+## Redundant rotation, precalculated Zeeman
+"""
+
+# ╔═╡ 26d36336-6638-4fb7-8a7d-87fc54bc5ab5
+CUDA.@time preZeemanNoRot(500)
+
+# ╔═╡ dc8a5d1c-c7f1-4c57-b408-0020cc68a3b0
+@benchmark (CUDA.@sync preZeemanNoRot(x)) samples=100 seconds = 300 setup=(x = rand((0:500)))
+
+# ╔═╡ c2afdfd0-87d6-4482-8c80-85c9e97a0050
+md"""
+## Precalculated rotation, precalculated Zeeman
+"""
+
+# ╔═╡ da36fcef-0d7a-450c-83d3-84dc1aea7e88
+CUDA.@time preZeeman(500)
+
+# ╔═╡ 0ff4398a-0e5a-4885-8c94-cce5e967b860
+@benchmark (CUDA.@sync preZeeman(x)) samples=100 seconds = 300 setup=(x = rand((0:500)))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+BenchmarkTools = "~1.5.0"
 CUDA = "~5.4.2"
 JLD2 = "~0.4.50"
-Peaks = "~0.5.2"
 Plots = "~1.40.5"
-ProgressLogging = "~0.1.4"
 StaticArrays = "~1.9.7"
 """
 
@@ -313,7 +478,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "419d03263959e03e0407a14692ec986bd7cc4cc2"
+project_hash = "155a5a1d244991183f08035d6f757b29b1f85cf1"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -360,6 +525,12 @@ version = "0.5.0"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[deps.BenchmarkTools]]
+deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "f1dff6729bc61f4d49e140da1af55dcd1ac97b2f"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.5.0"
 
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
@@ -1049,12 +1220,6 @@ git-tree-sha1 = "8489905bcdbcfac64d1daa51ca07c0d8f0283821"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.8.1"
 
-[[deps.Peaks]]
-deps = ["Compat", "RecipesBase"]
-git-tree-sha1 = "77d181ab4d6e58f3d2d6f1643938ded358cf5c6e"
-uuid = "18e31ff7-3703-566c-8e60-38913d67486b"
-version = "0.5.2"
-
 [[deps.Pipe]]
 git-tree-sha1 = "6842804e7867b115ca9de748a0cf6b364523c16d"
 uuid = "b98c9c47-44ae-5843-9183-064241ee97a0"
@@ -1131,11 +1296,9 @@ version = "2.3.2"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
-[[deps.ProgressLogging]]
-deps = ["Logging", "SHA", "UUIDs"]
-git-tree-sha1 = "80d919dee55b9c50e8d9e2da5eeafff3fe58b539"
-uuid = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
-version = "0.1.4"
+[[deps.Profile]]
+deps = ["Printf"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 
 [[deps.Qt6Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Vulkan_Loader_jll", "Xorg_libSM_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_cursor_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "libinput_jll", "xkbcommon_jll"]
@@ -1684,11 +1847,10 @@ version = "1.4.1+1"
 # ╔═╡ Cell order:
 # ╠═0a0a94c8-653d-11ef-13fa-b98a27cb8524
 # ╠═dbc2d3f9-5d70-4733-ae40-8750a8ea04ed
-# ╠═77d5e493-08d0-4433-b8e5-0344de775b6e
 # ╠═c704e52b-e516-495c-84e1-3557466004b2
 # ╠═d67e3371-9b78-45dd-a2d0-38982080bca4
 # ╠═7b7f582c-ce95-4f6a-a6de-29c3cf16e356
-# ╠═0536ab28-19b0-4c68-ab5b-67f87cc5a2e2
+# ╠═be708808-752e-4aa5-a315-0d64593d30e7
 # ╟─ad79aef6-907f-4c6d-8e15-e20ecf669e3b
 # ╟─6d1f7bba-54ea-47dd-a23b-e88185e8960b
 # ╟─0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
@@ -1696,8 +1858,8 @@ version = "1.4.1+1"
 # ╟─27b097d2-9989-45d3-8725-3e9a4820024e
 # ╟─e9b9d1bf-c257-45c5-93a2-25a99efaf73f
 # ╟─bc31145a-4d0c-41c9-ba8e-10af53d24bf5
-# ╟─f5859816-6659-4ce7-9e28-c20b803849ba
-# ╟─2cddcd6c-f3d0-4308-9b60-b3c70507cab5
+# ╠═f5859816-6659-4ce7-9e28-c20b803849ba
+# ╠═2cddcd6c-f3d0-4308-9b60-b3c70507cab5
 # ╟─7a4581aa-14a0-467b-9ecf-1f351ce95e7b
 # ╟─885a4f2a-fd99-478c-ab64-018660f620ce
 # ╟─327bf173-e909-4c0c-9cff-71efc2f6044e
@@ -1707,12 +1869,27 @@ version = "1.4.1+1"
 # ╟─9d37429c-a41b-4024-a02e-d934cd1ee48b
 # ╠═f8bf9242-71a0-4de7-b973-367dd1e42c45
 # ╠═05c0b368-be58-4ac5-ba7d-b917126b331a
-# ╠═23a93340-5f79-47ec-b135-0f77701306be
+# ╠═6939da22-069d-4a7c-8dcc-26204e60fdd0
+# ╠═1b21a2c5-e62d-4753-865f-ad0fe6efa800
+# ╠═0322daf5-4977-407a-a1ac-f9fef2dee3a5
+# ╠═d3c0c5ee-b958-4e1b-bf15-8b359c987c54
+# ╠═9d586612-af93-42ca-a0a0-259d8d5bd4db
+# ╠═64a24c5a-cfb0-40c3-b486-22452ef56867
+# ╠═e7a2fa38-40d4-48ad-ab2b-d112ca1956a8
 # ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 # ╠═d44a7190-adb4-460a-949e-005d9afaed73
-# ╠═35573e35-7bb0-4f06-9095-e2d0e4717ff6
-# ╠═79dcf062-819b-4291-8f0a-b9355493261e
-# ╠═0857c507-69fb-4a13-9f9d-0aced7908381
-# ╠═174177e9-f82d-4cf4-a396-bfea946d13b3
+# ╠═206c3fc8-502f-4987-8288-9d15f68c2d8d
+# ╟─3586d0fa-68c5-470a-91fe-ec47d3306c4a
+# ╠═d758c3bc-f325-46b1-af08-d2fc6e14ecff
+# ╠═86ab4d01-b73a-4f59-8ce2-9485ef981f32
+# ╟─aab89c5e-d4bc-4589-9eab-af3c1715201f
+# ╠═85ba0738-dba9-4902-9ade-5baf34f07571
+# ╠═c688d926-c9a1-447d-945e-d526daa72873
+# ╠═9107dc3b-d863-4873-9d76-8fabf149afab
+# ╠═26d36336-6638-4fb7-8a7d-87fc54bc5ab5
+# ╠═dc8a5d1c-c7f1-4c57-b408-0020cc68a3b0
+# ╠═c2afdfd0-87d6-4482-8c80-85c9e97a0050
+# ╠═da36fcef-0d7a-450c-83d3-84dc1aea7e88
+# ╠═0ff4398a-0e5a-4885-8c94-cce5e967b860
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
