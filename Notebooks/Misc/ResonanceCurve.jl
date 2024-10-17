@@ -24,12 +24,59 @@ begin
 	raw
 end
 
+# ╔═╡ 8b62eaed-fa68-4fcd-92e5-969a3e0e3ee2
+peaks = [
+	2.8674768595253126,
+	2.8731074844128126
+]
+
+# ╔═╡ 300a784d-1e7e-4ed1-8384-a4f304c9b716
+maxAmp = maximum(Vs)
+
 # ╔═╡ 0042b61a-16bc-4aaa-8ffd-c936e43e0057
-function lorentzian(t, p, ω)
-	x = 2*(t - p)/ω
+function lorentzian(t, μ, Γ, A)
+	x = 2*(t - μ)/Γ
 	L = 1/(1 + x^2)
-	return L
+	return A*L
 end
+
+# ╔═╡ bf2b0d78-f359-4253-919f-05b32eb82a10
+function twinLorentzian(t, μ, λ, Γ, A)
+	lorentzian(t, μ, Γ, A) + lorentzian(t, λ, Γ, A)
+end
+
+# ╔═╡ ddbfd70b-f4aa-4c87-9009-36e3accce988
+ts = 0:1000
+
+# ╔═╡ 5e19c517-35bf-4ad2-b1b8-cdcc02887764
+ys = twinLorentzian.(ts, 400, 600, 80, 2)
+
+# ╔═╡ b3ce0617-25f3-4820-a751-5de990bec306
+plot(ts, ys)
+
+# ╔═╡ a9d108ea-2848-47a6-a379-d071bb21becd
+@. lorentzianModel(x, p) = twinLorentzian(x, p[1], p[2], p[3], p[4])
+
+# ╔═╡ 397efbfa-0b2d-4301-895d-47225a7cbb3b
+LP0 = [peaks[1], peaks[2], 0.02, maxAmp]
+
+# ╔═╡ 5247ead9-5196-4570-a6ea-2ba5c881e533
+plot(fs, Vs)
+
+# ╔═╡ f25060a5-dc6f-489b-a1fc-a6a402447845
+lorentzianFit = curve_fit(lorentzianModel, fs, Vs, LP0)
+
+# ╔═╡ 50433218-5dd2-4d3a-a2df-2f42d0d3c8d7
+lorentzianFit.param
+
+# ╔═╡ a7dbeae0-2063-4924-89e7-3f0206a36f3c
+begin
+	local plt = plot(fs, Vs)
+	plot!(plt, fs, lorentzianModel(fs, lorentzianFit.param))
+end
+
+# ╔═╡ 154c4d38-9996-4999-a095-d28a315eb829
+sum(lorentzianFit.resid .^ 2)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1456,6 +1503,19 @@ version = "1.4.1+1"
 # ╠═cbc49a3c-c56f-4e85-b2ad-b6789956cfd6
 # ╠═cff594fe-bbaa-467a-b658-530c6faa1a8b
 # ╠═6dfa0590-4a5f-4ca8-8c6d-0ab288ae139a
+# ╠═8b62eaed-fa68-4fcd-92e5-969a3e0e3ee2
+# ╠═300a784d-1e7e-4ed1-8384-a4f304c9b716
 # ╠═0042b61a-16bc-4aaa-8ffd-c936e43e0057
+# ╠═bf2b0d78-f359-4253-919f-05b32eb82a10
+# ╠═ddbfd70b-f4aa-4c87-9009-36e3accce988
+# ╠═5e19c517-35bf-4ad2-b1b8-cdcc02887764
+# ╠═b3ce0617-25f3-4820-a751-5de990bec306
+# ╠═a9d108ea-2848-47a6-a379-d071bb21becd
+# ╠═397efbfa-0b2d-4301-895d-47225a7cbb3b
+# ╠═5247ead9-5196-4570-a6ea-2ba5c881e533
+# ╠═f25060a5-dc6f-489b-a1fc-a6a402447845
+# ╠═50433218-5dd2-4d3a-a2df-2f42d0d3c8d7
+# ╠═a7dbeae0-2063-4924-89e7-3f0206a36f3c
+# ╠═154c4d38-9996-4999-a095-d28a315eb829
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
