@@ -33,35 +33,31 @@ peaks = [
 # ╔═╡ 300a784d-1e7e-4ed1-8384-a4f304c9b716
 maxAmp = maximum(Vs)
 
-# ╔═╡ 0042b61a-16bc-4aaa-8ffd-c936e43e0057
+# ╔═╡ ddbfd70b-f4aa-4c87-9009-36e3accce988
+ts = 0:1000
+
+# ╔═╡ 4dd3459b-fb9b-49a1-a77d-25de03ddc905
+md"""
+# Lorentzian fit
+"""
+
+# ╔═╡ 02e5c697-1b34-4916-9316-3e790342f57d
 function lorentzian(t, μ, Γ, A)
 	x = 2*(t - μ)/Γ
 	L = 1/(1 + x^2)
 	return A*L
 end
 
-# ╔═╡ bf2b0d78-f359-4253-919f-05b32eb82a10
+# ╔═╡ fff0ceac-588e-4759-a95e-3630f36627c9
 function twinLorentzian(t, μ, λ, Γ, A)
 	lorentzian(t, μ, Γ, A) + lorentzian(t, λ, Γ, A)
 end
-
-# ╔═╡ ddbfd70b-f4aa-4c87-9009-36e3accce988
-ts = 0:1000
-
-# ╔═╡ 5e19c517-35bf-4ad2-b1b8-cdcc02887764
-ys = twinLorentzian.(ts, 400, 600, 80, 2)
-
-# ╔═╡ b3ce0617-25f3-4820-a751-5de990bec306
-plot(ts, ys)
 
 # ╔═╡ a9d108ea-2848-47a6-a379-d071bb21becd
 @. lorentzianModel(x, p) = twinLorentzian(x, p[1], p[2], p[3], p[4])
 
 # ╔═╡ 397efbfa-0b2d-4301-895d-47225a7cbb3b
 LP0 = [peaks[1], peaks[2], 0.02, maxAmp]
-
-# ╔═╡ 5247ead9-5196-4570-a6ea-2ba5c881e533
-plot(fs, Vs)
 
 # ╔═╡ f25060a5-dc6f-489b-a1fc-a6a402447845
 lorentzianFit = curve_fit(lorentzianModel, fs, Vs, LP0)
@@ -72,11 +68,91 @@ lorentzianFit.param
 # ╔═╡ a7dbeae0-2063-4924-89e7-3f0206a36f3c
 begin
 	local plt = plot(fs, Vs)
-	plot!(plt, fs, lorentzianModel(fs, lorentzianFit.param))
+	plot!(plt, fs, lorentzianModel(fs, lorentzianFit.param), lw = 2)
 end
 
 # ╔═╡ 154c4d38-9996-4999-a095-d28a315eb829
 sum(lorentzianFit.resid .^ 2)
+
+# ╔═╡ ab28eb8d-4112-4b93-97fb-586fe36071de
+md"""
+# Gaussian fit
+"""
+
+# ╔═╡ 8d2a2395-d8d2-45a4-b899-8defd7ff33e6
+function gaussian(t, μ, Γ, A)
+	σ = Γ/sqrt(8*log(2))
+	G = exp((-(t - μ)^2) / (2*σ^2))
+	return A*G
+end
+
+# ╔═╡ d9cfc313-7f43-4fcf-bbbc-9f14b33a0919
+function twinGaussian(t, μ, λ, Γ, A)
+	gaussian(t, μ, Γ, A) + gaussian(t, λ, Γ, A)
+end
+
+# ╔═╡ 757db321-22f8-46ad-9b36-9a17ce007e2d
+@. gaussianModel(x, p) = twinGaussian(x, p[1], p[2], p[3], p[4])
+
+# ╔═╡ ef1db9fd-04d5-4336-8c7c-17be030aba04
+GP0 = [peaks[1], peaks[2], 0.02, maxAmp]
+
+# ╔═╡ 2a03b995-7545-478b-abbd-ca62bd7d0715
+gaussianFit = curve_fit(gaussianModel, fs, Vs, GP0)
+
+# ╔═╡ 4a83515c-85d9-4579-867d-c743c08859ee
+gaussianFit.param
+
+# ╔═╡ 6cbb26fc-9dea-4e88-9d4e-08e3b6d333c6
+begin
+	local plt = plot(fs, Vs)
+	plot!(plt, fs, gaussianModel(fs, gaussianFit.param), lw = 2)
+end
+
+# ╔═╡ f0113003-7f02-4d7f-b5b2-08c1020efa46
+sum(gaussianFit.resid .^ 2)
+
+# ╔═╡ 64f7ea56-a31e-4a03-9948-318eaed29254
+md"""
+# Pseudo-Voigt fit
+"""
+
+# ╔═╡ d5995d3f-a143-4b38-a988-711624426b56
+function pseudoVoigt(t, μ, Γ, A, B)
+	lorentzian(t, μ, Γ, A) + gaussian(t, μ, Γ, B)
+end
+
+# ╔═╡ 6a669f71-8425-40e6-9aee-a20e9f11b6b2
+function twinPseudoVoigt(t, μ, λ, Γ, A, B)
+	pseudoVoigt(t, μ, Γ, A, B) + pseudoVoigt(t, λ, Γ, A, B)
+end
+
+# ╔═╡ 5e19c517-35bf-4ad2-b1b8-cdcc02887764
+ys = twinPseudoVoigt.(ts, 400, 600, 80, 5, 1)
+
+# ╔═╡ b3ce0617-25f3-4820-a751-5de990bec306
+plot(ts, ys)
+
+# ╔═╡ fbd3384e-94f6-49ef-9d8d-65ad8a91aa55
+@. pseudoVoigtModel(x, p) = twinPseudoVoigt(x, p[1], p[2], p[3], p[4], p[5])
+
+# ╔═╡ 2107ef14-950d-49b2-b820-0ef924761c69
+VP0 = [peaks[1], peaks[2], 0.02, maxAmp/2, maxAmp/2]
+
+# ╔═╡ 413ebd44-5b22-45a2-a869-6a0158e31fa4
+pseudoVoigtFit = curve_fit(pseudoVoigtModel, fs, Vs, VP0)
+
+# ╔═╡ 30dfefc0-a425-4bd3-a00d-20ff7be80395
+pseudoVoigtFit.param
+
+# ╔═╡ 9d799ec0-56d1-46fe-bc57-ae763086febe
+begin
+	local plt = plot(fs, Vs)
+	plot!(plt, fs, pseudoVoigtModel(fs, pseudoVoigtFit.param), lw = 2)
+end
+
+# ╔═╡ d8f06a63-842a-42e6-a97a-9bb634092713
+sum(pseudoVoigtFit.resid .^ 2)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1505,17 +1581,35 @@ version = "1.4.1+1"
 # ╠═6dfa0590-4a5f-4ca8-8c6d-0ab288ae139a
 # ╠═8b62eaed-fa68-4fcd-92e5-969a3e0e3ee2
 # ╠═300a784d-1e7e-4ed1-8384-a4f304c9b716
-# ╠═0042b61a-16bc-4aaa-8ffd-c936e43e0057
-# ╠═bf2b0d78-f359-4253-919f-05b32eb82a10
 # ╠═ddbfd70b-f4aa-4c87-9009-36e3accce988
 # ╠═5e19c517-35bf-4ad2-b1b8-cdcc02887764
 # ╠═b3ce0617-25f3-4820-a751-5de990bec306
+# ╟─4dd3459b-fb9b-49a1-a77d-25de03ddc905
+# ╠═02e5c697-1b34-4916-9316-3e790342f57d
+# ╠═fff0ceac-588e-4759-a95e-3630f36627c9
 # ╠═a9d108ea-2848-47a6-a379-d071bb21becd
 # ╠═397efbfa-0b2d-4301-895d-47225a7cbb3b
-# ╠═5247ead9-5196-4570-a6ea-2ba5c881e533
 # ╠═f25060a5-dc6f-489b-a1fc-a6a402447845
 # ╠═50433218-5dd2-4d3a-a2df-2f42d0d3c8d7
 # ╠═a7dbeae0-2063-4924-89e7-3f0206a36f3c
 # ╠═154c4d38-9996-4999-a095-d28a315eb829
+# ╟─ab28eb8d-4112-4b93-97fb-586fe36071de
+# ╠═8d2a2395-d8d2-45a4-b899-8defd7ff33e6
+# ╠═d9cfc313-7f43-4fcf-bbbc-9f14b33a0919
+# ╠═757db321-22f8-46ad-9b36-9a17ce007e2d
+# ╠═ef1db9fd-04d5-4336-8c7c-17be030aba04
+# ╠═2a03b995-7545-478b-abbd-ca62bd7d0715
+# ╠═4a83515c-85d9-4579-867d-c743c08859ee
+# ╠═6cbb26fc-9dea-4e88-9d4e-08e3b6d333c6
+# ╠═f0113003-7f02-4d7f-b5b2-08c1020efa46
+# ╟─64f7ea56-a31e-4a03-9948-318eaed29254
+# ╠═d5995d3f-a143-4b38-a988-711624426b56
+# ╠═6a669f71-8425-40e6-9aee-a20e9f11b6b2
+# ╠═fbd3384e-94f6-49ef-9d8d-65ad8a91aa55
+# ╠═2107ef14-950d-49b2-b820-0ef924761c69
+# ╠═413ebd44-5b22-45a2-a869-6a0158e31fa4
+# ╠═30dfefc0-a425-4bd3-a00d-20ff7be80395
+# ╠═9d799ec0-56d1-46fe-bc57-ae763086febe
+# ╠═d8f06a63-842a-42e6-a97a-9bb634092713
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
