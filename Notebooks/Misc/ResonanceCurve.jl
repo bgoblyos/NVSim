@@ -10,11 +10,17 @@ using JLD2
 # ╔═╡ 97d8c694-2dce-46a7-a254-96a8fc7345e9
 using Measurements
 
+# ╔═╡ d455bd24-4403-42c8-b40a-99598802374e
+using Unitful
+
 # ╔═╡ cbc49a3c-c56f-4e85-b2ad-b6789956cfd6
 using Plots
 
 # ╔═╡ cff594fe-bbaa-467a-b658-530c6faa1a8b
 using LsqFit
+
+# ╔═╡ 32e0031f-e85f-4184-99cf-3fef16c06c64
+default( fontfamily = "Computer Modern")
 
 # ╔═╡ 6dfa0590-4a5f-4ca8-8c6d-0ab288ae139a
 begin
@@ -33,8 +39,12 @@ peaks = [
 # ╔═╡ 300a784d-1e7e-4ed1-8384-a4f304c9b716
 maxAmp = maximum(Vs)
 
-# ╔═╡ ddbfd70b-f4aa-4c87-9009-36e3accce988
-ts = 0:1000
+# ╔═╡ 33e9d9da-b0bf-4603-95b2-a31650c9aa73
+function getError(fit)
+	residuals = (fit.resid)u"V"
+	error = sum(residuals .^ 2)
+	return uconvert(u"μV ^ 2", error)
+end
 
 # ╔═╡ 4dd3459b-fb9b-49a1-a77d-25de03ddc905
 md"""
@@ -67,12 +77,16 @@ lorentzianFit.param
 
 # ╔═╡ a7dbeae0-2063-4924-89e7-3f0206a36f3c
 begin
-	local plt = plot(fs, Vs)
-	plot!(plt, fs, lorentzianModel(fs, lorentzianFit.param), lw = 2)
+	local plt = plot(fs, Vs, label = "Mért adatok")
+	plot!(plt, fs, lorentzianModel(fs, lorentzianFit.param), lw = 2, label = "Illesztett görbe")
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Jel (V)")
+	savefig(plt, "~/Downloads/lorentz.pdf")
+	plt
 end
 
 # ╔═╡ 154c4d38-9996-4999-a095-d28a315eb829
-sum(lorentzianFit.resid .^ 2)
+getError(lorentzianFit)
 
 # ╔═╡ ab28eb8d-4112-4b93-97fb-586fe36071de
 md"""
@@ -105,12 +119,16 @@ gaussianFit.param
 
 # ╔═╡ 6cbb26fc-9dea-4e88-9d4e-08e3b6d333c6
 begin
-	local plt = plot(fs, Vs)
-	plot!(plt, fs, gaussianModel(fs, gaussianFit.param), lw = 2)
+	local plt = plot(fs, Vs, label = "Mért adatok")
+	plot!(plt, fs, gaussianModel(fs, gaussianFit.param), lw = 2, label = "illesztett görbe")
+		xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Jel (V)")
+	savefig(plt, "~/Downloads/gauss.pdf")
+	plt
 end
 
 # ╔═╡ f0113003-7f02-4d7f-b5b2-08c1020efa46
-sum(gaussianFit.resid .^ 2)
+getError(gaussianFit)
 
 # ╔═╡ 64f7ea56-a31e-4a03-9948-318eaed29254
 md"""
@@ -127,12 +145,6 @@ function twinPseudoVoigt(t, μ, λ, Γ, A, B)
 	pseudoVoigt(t, μ, Γ, A, B) + pseudoVoigt(t, λ, Γ, A, B)
 end
 
-# ╔═╡ 5e19c517-35bf-4ad2-b1b8-cdcc02887764
-ys = twinPseudoVoigt.(ts, 400, 600, 80, 5, 1)
-
-# ╔═╡ b3ce0617-25f3-4820-a751-5de990bec306
-plot(ts, ys)
-
 # ╔═╡ fbd3384e-94f6-49ef-9d8d-65ad8a91aa55
 @. pseudoVoigtModel(x, p) = twinPseudoVoigt(x, p[1], p[2], p[3], p[4], p[5])
 
@@ -147,12 +159,16 @@ pseudoVoigtFit.param
 
 # ╔═╡ 9d799ec0-56d1-46fe-bc57-ae763086febe
 begin
-	local plt = plot(fs, Vs)
-	plot!(plt, fs, pseudoVoigtModel(fs, pseudoVoigtFit.param), lw = 2)
+	local plt = plot(fs, Vs, label = "Mért adatok")
+	plot!(plt, fs, pseudoVoigtModel(fs, pseudoVoigtFit.param), lw = 2, label = "Illesztett görbe")
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Jel (V)")
+	savefig(plt, "~/Downloads/pseudoVoigt.pdf")
+	plt
 end
 
 # ╔═╡ d8f06a63-842a-42e6-a97a-9bb634092713
-sum(pseudoVoigtFit.resid .^ 2)
+getError(pseudoVoigtFit)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -161,21 +177,23 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 JLD2 = "~0.4.50"
 LsqFit = "~0.15.0"
 Measurements = "~2.11.0"
 Plots = "~1.40.8"
+Unitful = "~1.21.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.0"
+julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "519c2217b92620b286457387c3c072537f6b423a"
+project_hash = "65e6dec973431fd374dc96a07ec2347c6e24f042"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -1576,14 +1594,14 @@ version = "1.4.1+1"
 # ╔═╡ Cell order:
 # ╠═8bf0ddfc-8c76-11ef-0aa0-038d037c0289
 # ╠═97d8c694-2dce-46a7-a254-96a8fc7345e9
+# ╠═d455bd24-4403-42c8-b40a-99598802374e
 # ╠═cbc49a3c-c56f-4e85-b2ad-b6789956cfd6
 # ╠═cff594fe-bbaa-467a-b658-530c6faa1a8b
+# ╠═32e0031f-e85f-4184-99cf-3fef16c06c64
 # ╠═6dfa0590-4a5f-4ca8-8c6d-0ab288ae139a
 # ╠═8b62eaed-fa68-4fcd-92e5-969a3e0e3ee2
 # ╠═300a784d-1e7e-4ed1-8384-a4f304c9b716
-# ╠═ddbfd70b-f4aa-4c87-9009-36e3accce988
-# ╠═5e19c517-35bf-4ad2-b1b8-cdcc02887764
-# ╠═b3ce0617-25f3-4820-a751-5de990bec306
+# ╠═33e9d9da-b0bf-4603-95b2-a31650c9aa73
 # ╟─4dd3459b-fb9b-49a1-a77d-25de03ddc905
 # ╠═02e5c697-1b34-4916-9316-3e790342f57d
 # ╠═fff0ceac-588e-4759-a95e-3630f36627c9

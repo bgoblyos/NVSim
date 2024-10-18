@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.45
+# v0.19.47
 
 using Markdown
 using InteractiveUtils
@@ -131,28 +131,6 @@ function findODMRPeaks(freqs, signal)
 	end
 	return sort(peakFreqs)
 end
-
-# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
-begin
-	testData = jldopen("../../data/2024-09-16.jld2")
-	peakMatrix = testData["peaks"]
-	VHs = testData["VHs"]
-	IMs = testData["IMs"]
-	md"Data import"
-end
-
-# ╔═╡ 05c0b368-be58-4ac5-ba7d-b917126b331a
-# ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
-#=╠═╡
-begin
-	peakMatrix = zeros(length(Bs), 8)
-	for i in 1:length(Bs)
-		peakMatrix[i,:] = findODMRPeaks(freqs, signals[i,:])
-	end
-	peakMatrix
-end
-  ╠═╡ =#
 
 # ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 function simKernel!(scores, Rs, offsets, slopes, rawBs, peakMatrix)
@@ -296,6 +274,30 @@ result = segmentedFit(1, -1.9, 0.2, 262.4, 1)
 
 # ╔═╡ f3adc4f5-5017-497d-aa4e-552d9bd799e8
 262.432 * IMs[4] - 1.91935
+
+# ╔═╡ 05c0b368-be58-4ac5-ba7d-b917126b331a
+# ╠═╡ disabled = true
+# ╠═╡ skip_as_script = true
+#=╠═╡
+begin
+	peakMatrix = zeros(length(Bs), 8)
+	for i in 1:length(Bs)
+		peakMatrix[i,:] = findODMRPeaks(freqs, signals[i,:])
+	end
+	peakMatrix
+end
+  ╠═╡ =#
+
+# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
+#=╠═╡
+begin
+	testData = jldopen("../../data/2024-09-16.jld2")
+	peakMatrix = testData["peaks"]
+	VHs = testData["VHs"]
+	IMs = testData["IMs"]
+	md"Data import"
+end
+  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """

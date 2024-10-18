@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.19.47
 
 using Markdown
 using InteractiveUtils
@@ -28,6 +28,9 @@ using BenchmarkTools
 
 # ╔═╡ d4f29a6d-77d6-43ce-af7a-f799080d2ea7
 import PlutoUI: combine, Slider
+
+# ╔═╡ e6ec9d50-7dcd-4f6b-ae27-7b454c54a4a6
+default( fontfamily = "Computer Modern" )
 
 # ╔═╡ 69474a6d-c3f3-4323-b7db-f2abf2d28538
 begin
@@ -99,12 +102,12 @@ function plotDirection(orientation)
 	s1 = getindex.(res, 1)
 	s2 = getindex.(res, 2)
 	s3 = getindex.(res, 3)
-	plt = plot(Bs, s1, label = "s1")
-	plot!(plt, Bs, s2, label="s2")
-	plot!(plt, Bs, s3, label="s3")
-	xlabel!(plt, "B (G)")
+	plt = plot(Bs, s1, label = "")
+	plot!(plt, Bs, s2, label = "")
+	plot!(plt, Bs, s3, label = "")
+	xlabel!(plt, "B (Gauss)")
 	ylabel!(plt, "Energia (GHz)")
-	savefig(plt, "/tmp/energy_leves.pdf")
+	savefig(plt, "~/Downloads/energy_leves.pdf")
 	return plt
 end
 
@@ -188,7 +191,7 @@ StaticArrays = "~1.9.7"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.0-rc3"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "fbf3de534b7660698fb0a2f5f12a2017c71e1f2b"
 
@@ -1378,6 +1381,7 @@ version = "1.4.1+1"
 # ╠═9aa760fb-99c9-4780-a9e6-2b8a6a938820
 # ╠═937dfb1a-df70-4660-9914-9acb6d1f1e63
 # ╠═d4f29a6d-77d6-43ce-af7a-f799080d2ea7
+# ╠═e6ec9d50-7dcd-4f6b-ae27-7b454c54a4a6
 # ╠═69474a6d-c3f3-4323-b7db-f2abf2d28538
 # ╠═32c0ffd1-bf4b-450b-a116-09af6f29b8a5
 # ╠═d1e01831-4fc7-41d0-8cb9-5701c7b715d2
