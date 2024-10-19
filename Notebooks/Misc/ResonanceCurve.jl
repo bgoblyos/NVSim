@@ -120,7 +120,7 @@ gaussianFit.param
 # ╔═╡ 6cbb26fc-9dea-4e88-9d4e-08e3b6d333c6
 begin
 	local plt = plot(fs, Vs, label = "Mért adatok")
-	plot!(plt, fs, gaussianModel(fs, gaussianFit.param), lw = 2, label = "illesztett görbe")
+	plot!(plt, fs, gaussianModel(fs, gaussianFit.param), lw = 2, label = "Illesztett görbe")
 		xlabel!(plt, "Frekvencia (GHz)")
 	ylabel!(plt, "Jel (V)")
 	savefig(plt, "~/Downloads/gauss.pdf")

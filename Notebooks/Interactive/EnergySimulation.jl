@@ -94,7 +94,7 @@ function transitionEnergies(dir, B)
 end
 
 # ╔═╡ 876723c4-4a25-444d-a13a-62ce5a028596
-Bs = range(0,1500,1000)
+Bs = range(0,1500,6000)
 
 # ╔═╡ ae524e28-4a06-43f0-9051-f2efca5504d7
 function plotDirection(orientation)
@@ -102,6 +102,18 @@ function plotDirection(orientation)
 	s1 = getindex.(res, 1)
 	s2 = getindex.(res, 2)
 	s3 = getindex.(res, 3)
+	
+	
+	near = filter(i -> abs(s1[i] - s2[i]) < 1e-3, 1:length(s1))
+	println(near)
+
+	if length(near) != 0
+		crossing = sum(near) ÷ length(near)
+		temp = s1[crossing:end]
+		s1[crossing:end] = s2[crossing:end]
+		s2[crossing:end] = temp
+	end
+	
 	plt = plot(Bs, s1, label = "")
 	plot!(plt, Bs, s2, label = "")
 	plot!(plt, Bs, s3, label = "")
@@ -170,6 +182,22 @@ begin
 	a, b = transitionEnergies([1,0,0], 0)
 	1000*abs(a-b)
 end
+
+# ╔═╡ 350a6c43-eea8-4300-a134-a9a891e47092
+begin
+	local parallel = plotDirection(normalize([0, 0, 1]))
+	title!(parallel, "Párhuzamos orentáció (a)")
+	
+	local tetrahedral = plotDirection(normalize([1, -1, -1]))
+	title!(tetrahedral, "Tetraéderes orentáció (b)")
+	
+	local plt = plot(parallel, tetrahedral, layout = (2,1), size = (600,600))
+	savefig(plt, "~/Downloads/energy.pdf")
+	plt
+end
+
+# ╔═╡ bade0911-fc69-4202-87c1-11ea1bd62aea
+sum([2048, 2049])÷2
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1400,5 +1428,7 @@ version = "1.4.1+1"
 # ╠═b1213200-cea3-4acc-8a73-9ba750b7e460
 # ╠═cd74f901-6bd5-4c0d-8412-b1ada8f28744
 # ╠═10227260-185b-4208-a61a-a0b61d0e0142
+# ╠═350a6c43-eea8-4300-a134-a9a891e47092
+# ╠═bade0911-fc69-4202-87c1-11ea1bd62aea
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

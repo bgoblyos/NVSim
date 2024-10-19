@@ -85,6 +85,11 @@ const Hnv = begin
     MHzToK * (d + e)
 end
 
+# ╔═╡ 8d03dc27-54fc-4fa5-bbb9-44bfaab8f1de
+md"""
+### Note: this notebook has the Rz and Rx rotation matrices switched up. This makes the γ angle relevant to the magnetic field and causes the simulation parameters to be redundant (2 angles are enough with proper matrices). It is left as-is for the time being because it doesn't affect the results in any relevant way.
+"""
+
 # ╔═╡ 80b88ce1-dc79-49c1-a419-9771ce9f2c2d
 function Rz(t)
 	SMatrix{3,3,Float64}(  1,       0,       0,
@@ -285,6 +290,18 @@ end
 
 # ╔═╡ 39e7aedd-49bf-49df-9ae6-0516d24e107c
 unscaledZeeman([1,0,0])
+
+# ╔═╡ 8248e89e-091e-4763-84ae-cef524f36dc6
+begin
+	local plt = bar(freqs[95:105], wholeCrystalPeaks([6], freqs[95:105], α, β, γ)[1,:], label = "")
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Rezonancia")
+	savefig(plt, "~/Downloads/quantized.pdf")
+	plt
+end
+
+# ╔═╡ 0c73903a-e0b8-4b97-8058-6ef8fabff297
+length(mFreqs)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1524,6 +1541,7 @@ version = "1.4.1+1"
 # ╠═64f9d5fa-797d-403b-9a3f-43d52e6c37ef
 # ╠═538c74bb-53d7-41fe-a1d3-fb1e66d99fa1
 # ╠═1d59678b-1dcf-4bec-89fa-5f526b66b257
+# ╟─8d03dc27-54fc-4fa5-bbb9-44bfaab8f1de
 # ╠═80b88ce1-dc79-49c1-a419-9771ce9f2c2d
 # ╠═62e24e24-da8a-4fad-a10a-6a543191d7b9
 # ╠═2a61ff02-258e-43f5-a3ed-9c98c588dc34
@@ -1556,5 +1574,7 @@ version = "1.4.1+1"
 # ╠═6ca31076-ed40-4b27-a6dd-b64ff1f948b2
 # ╠═60505a0d-6e2e-4d10-8202-9c9eace9bb23
 # ╠═39e7aedd-49bf-49df-9ae6-0516d24e107c
+# ╠═8248e89e-091e-4763-84ae-cef524f36dc6
+# ╠═0c73903a-e0b8-4b97-8058-6ef8fabff297
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

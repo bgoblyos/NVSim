@@ -135,7 +135,7 @@ end
 # ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
 begin
 	testData = jldopen("../../data/2024-09-16.jld2")
-	const peakVector = SVector{8, Float32}(testData["peaks"][4,:])
+	const peakVector = SVector{8, Float32}(testData["peaks"][3,:])
 	VHs = testData["VHs"]
 	IMs = testData["IMs"]
 	md"Data import"
@@ -314,7 +314,7 @@ StaticArrays = "~1.9.7"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.0"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "37f2040c41dac9b2ccb61e9458ac4702392d8772"
 
@@ -1764,7 +1764,7 @@ version = "1.4.1+1"
 # ╟─0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
 # ╟─1cbe30b8-eb82-4bef-b774-0d19da33863a
 # ╟─27b097d2-9989-45d3-8725-3e9a4820024e
-# ╟─e9b9d1bf-c257-45c5-93a2-25a99efaf73f
+# ╠═e9b9d1bf-c257-45c5-93a2-25a99efaf73f
 # ╟─bc31145a-4d0c-41c9-ba8e-10af53d24bf5
 # ╟─f5859816-6659-4ce7-9e28-c20b803849ba
 # ╟─2cddcd6c-f3d0-4308-9b60-b3c70507cab5
