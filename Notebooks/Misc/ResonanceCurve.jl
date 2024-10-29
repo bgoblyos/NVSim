@@ -136,20 +136,25 @@ md"""
 """
 
 # ╔═╡ d5995d3f-a143-4b38-a988-711624426b56
-function pseudoVoigt(t, μ, Γ, A, B)
-	lorentzian(t, μ, Γ, A) + gaussian(t, μ, Γ, B)
+function pseudoVoigt(t, μ, ΓL, ΓG, A)
+	# approximation by https://doi.org/10.1107%2Fs0021889800010219
+	Γ = (ΓG^5 + 2.69269 * ΓG^4 * ΓL + 2.42843 * ΓG^3 * ΓL^2 + 4.47163 * ΓG^2 * ΓL^3 + 0.07842 * ΓG * ΓL^4 + ΓL^5)^0.2
+	η = 1.36603 * (ΓL/Γ) - 0.47719 * (ΓL/Γ)^2 + 0.11116 * (ΓL/Γ)^3
+
+	PV = η * lorentzian(t, μ, ΓL, A) + (1 - η) * gaussian(t, μ, ΓG, A)
+	return A * PV
 end
 
 # ╔═╡ 6a669f71-8425-40e6-9aee-a20e9f11b6b2
-function twinPseudoVoigt(t, μ, λ, Γ, A, B)
-	pseudoVoigt(t, μ, Γ, A, B) + pseudoVoigt(t, λ, Γ, A, B)
+function twinPseudoVoigt(t, μ, λ, ΓL, ΓG, A)
+	pseudoVoigt(t, μ, ΓL, ΓG, A) + pseudoVoigt(t, λ, ΓL, ΓG, A)
 end
 
 # ╔═╡ fbd3384e-94f6-49ef-9d8d-65ad8a91aa55
 @. pseudoVoigtModel(x, p) = twinPseudoVoigt(x, p[1], p[2], p[3], p[4], p[5])
 
 # ╔═╡ 2107ef14-950d-49b2-b820-0ef924761c69
-VP0 = [peaks[1], peaks[2], 0.02, maxAmp/2, maxAmp/2]
+VP0 = [peaks[1], peaks[2], 0.02, 0.02, maxAmp/2]
 
 # ╔═╡ 413ebd44-5b22-45a2-a869-6a0158e31fa4
 pseudoVoigtFit = curve_fit(pseudoVoigtModel, fs, Vs, VP0)

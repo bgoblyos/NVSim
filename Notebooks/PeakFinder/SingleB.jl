@@ -91,21 +91,18 @@ function Ry(t)
 	                      -sin(t),  0,  cos(t)  )
 end
 
-# ╔═╡ 7a4581aa-14a0-467b-9ecf-1f351ce95e7b
-function Rz(t)
-	SMatrix{3,3,Float32}( cos(t), -sin(t),  0,
-	                      sin(t),  cos(t),  0,
-	                           0,       0,  1  )
-end
+# ╔═╡ 671a12dd-0f91-48f4-ba24-defa9b445aad
+function getBvector(result)
+	B = result.orientation.B
+	α = result.orientation.α
+	β = result.orientation.β
 
-# ╔═╡ 885a4f2a-fd99-478c-ab64-018660f620ce
-function rotate(Rx, Ry, Rz, vect)
-	Rz * Ry * Rx * vect
-end
+	B0 = SVector{3, Float32}(0, 0, 1)
 
-# ╔═╡ 327bf173-e909-4c0c-9cff-71efc2f6044e
-function rotationMatrix(α, β, γ)
-	Rz(γ) * Ry(β) * Rx(α)
+	R = Rx(α) * Ry(β)
+	M = inv(R)
+
+	B * (M * B0)
 end
 
 # ╔═╡ f4733ba9-59a4-41d6-8690-dc3bcf9f7066
@@ -134,8 +131,8 @@ end
 
 # ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
 begin
-	testData = jldopen("../../data/2024-09-16.jld2")
-	const peakVector = SVector{8, Float32}(testData["peaks"][3,:])
+	testData = jldopen("../../data/2024-09-09.jld2")
+	const peakVector = SVector{8, Float32}(testData["peaks"][2,:])
 	VHs = testData["VHs"]
 	IMs = testData["IMs"]
 	md"Data import"
@@ -264,7 +261,7 @@ function segmentedFit(n, Bmin, Bmax)
 	bestFit = Inf
 	bestOrientation = missing
 	
-	angles = range(0, π, totalSize + 1)[2:end]
+	angles = range(0, 2π/3, totalSize + 1)[2:end]
 	Bs = range(Bmin, Bmax, totalSize)
 
 	@progress for i in 1:n, j in 1:n, k in 1:n
@@ -289,6 +286,9 @@ CUDA.@profile segmentedFit(1, 200, 215)
 
 # ╔═╡ 174177e9-f82d-4cf4-a396-bfea946d13b3
 result = segmentedFit(2, 0, 500)
+
+# ╔═╡ b3da5b4f-ef73-42b6-8f69-c7446b6c5d93
+getBvector(result)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1768,9 +1768,7 @@ version = "1.4.1+1"
 # ╟─bc31145a-4d0c-41c9-ba8e-10af53d24bf5
 # ╟─f5859816-6659-4ce7-9e28-c20b803849ba
 # ╟─2cddcd6c-f3d0-4308-9b60-b3c70507cab5
-# ╟─7a4581aa-14a0-467b-9ecf-1f351ce95e7b
-# ╟─885a4f2a-fd99-478c-ab64-018660f620ce
-# ╟─327bf173-e909-4c0c-9cff-71efc2f6044e
+# ╟─671a12dd-0f91-48f4-ba24-defa9b445aad
 # ╟─f4733ba9-59a4-41d6-8690-dc3bcf9f7066
 # ╟─f86f903b-4418-4438-abca-afb8a8b02a9e
 # ╟─0b624019-90c2-4790-b793-4d9d3f3833db
@@ -1784,5 +1782,6 @@ version = "1.4.1+1"
 # ╠═79dcf062-819b-4291-8f0a-b9355493261e
 # ╠═0857c507-69fb-4a13-9f9d-0aced7908381
 # ╠═174177e9-f82d-4cf4-a396-bfea946d13b3
+# ╠═b3da5b4f-ef73-42b6-8f69-c7446b6c5d93
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
