@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.47
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
@@ -193,6 +193,11 @@ begin
 	local plt = plot(parallel, tetrahedral, layout = (2,1), size = (600,600))
 	savefig(plt, "~/Downloads/energy.pdf")
 	plt
+end
+
+# ╔═╡ 3682b238-e0a5-474d-a6ac-1940d8bb7598
+begin
+	local orthogonal = plotDirection(normalize([1, 0, 0]))
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -1425,5 +1430,6 @@ version = "1.4.1+1"
 # ╠═cd74f901-6bd5-4c0d-8412-b1ada8f28744
 # ╠═10227260-185b-4208-a61a-a0b61d0e0142
 # ╠═350a6c43-eea8-4300-a134-a9a891e47092
+# ╠═3682b238-e0a5-474d-a6ac-1940d8bb7598
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
