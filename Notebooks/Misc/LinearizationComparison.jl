@@ -4,35 +4,16 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-end
-
-# ╔═╡ 5c6e885c-2410-4ebf-81f3-0739d49c6ce5
+# ╔═╡ 934131fa-9609-11ef-381f-41208a626184
 using StaticArrays
 
-# ╔═╡ d51a5d61-db63-4ce5-ab61-7bec9291633d
+# ╔═╡ 60b5c4a4-686c-41cc-8d1c-b50a3ef70360
 using LinearAlgebra
 
-# ╔═╡ 9aa760fb-99c9-4780-a9e6-2b8a6a938820
+# ╔═╡ 803ccdec-f8a8-4d51-ad35-077f105425db
 using Plots
 
-# ╔═╡ 937dfb1a-df70-4660-9914-9acb6d1f1e63
-using BenchmarkTools
-
-# ╔═╡ d4f29a6d-77d6-43ce-af7a-f799080d2ea7
-import PlutoUI: combine, Slider
-
-# ╔═╡ e6ec9d50-7dcd-4f6b-ae27-7b454c54a4a6
-default( fontfamily = "Computer Modern" )
-
-# ╔═╡ 69474a6d-c3f3-4323-b7db-f2abf2d28538
+# ╔═╡ c12568bc-dc71-436f-8bdb-b6a63800a0da
 begin
 	const MHzToK = 4.7991939324e-5
 	const GHzToK = 4.7991939324e-2
@@ -42,39 +23,39 @@ begin
 	const g = 2.0026
 end;
 
-# ╔═╡ 32c0ffd1-bf4b-450b-a116-09af6f29b8a5
+# ╔═╡ 7c9b1044-d840-4dc4-9ccf-2effb34c5dc9
 const spinX = SMatrix{3,3}([ 0 1 0
                              1 0 1
                              0 1 0 ] / sqrt(2))
 
-# ╔═╡ d1e01831-4fc7-41d0-8cb9-5701c7b715d2
+# ╔═╡ de9bed3d-dd83-4313-9c19-4d0f2c8cbb51
 const spinY = SMatrix{3,3}([  0 -im   0
                              im   0 -im
                               0   im   0 ] / sqrt(2))
 
-# ╔═╡ f015ac54-d05b-43f1-95d7-76455b0ebf61
+# ╔═╡ dd6368da-dbb2-4575-a84a-88169394c781
 const spinZ = SMatrix{3,3}([ 1  0  0
                              0  0  0
                              0  0 -1 ])
 
-# ╔═╡ 0d93a021-add6-4489-86b1-9b5374348be4
+# ╔═╡ 66c588aa-0e5c-4e94-aa11-ec666f112b8d
 spinVector = @SVector [spinX, spinY, spinZ]
 
-# ╔═╡ 6d0fe41f-c668-4e7a-9fc5-1a34454384eb
+# ╔═╡ 3dc23c89-198a-41a4-b8fc-8b751cbc78dc
 begin
 	const spinX2 = spinX^2
 	const spinY2 = spinY^2
 	const spinZ2 = spinZ^2
 end
 
-# ╔═╡ df982852-09d0-4e95-8841-8190b2160b94
+# ╔═╡ 35790d64-8f3b-466e-b8f4-f744f34628e1
 Hnv = begin
     d = D * (spinZ2 - (spinX2 + spinY2 + spinZ2)/3)
     e = E * (spinX2 - spinY2)
     MHzToK * (d + e)
 end
 
-# ╔═╡ 3369b471-4ea6-45eb-8c44-70e553ce53bc
+# ╔═╡ d0673672-6a1f-40bc-94c9-f20761fffb39
 function eigenStates(dir, B)
 	Hzeeman = B * gToK * g * sum(spinVector .* dir)
     H = Hzeeman + Hnv
@@ -82,22 +63,12 @@ function eigenStates(dir, B)
     return eigenvals / GHzToK
 end
 
-# ╔═╡ 81137e4b-fcd2-45eb-b907-7e8b4e3fec8b
-function transitionEnergies(dir, B)
-	Hzeeman = B * gToK * g * sum(spinVector .* dir)
-    H = Hzeeman + Hnv
-    eigenvals = eigvals(H) / GHzToK
-    return (
-		abs(eigenvals[1] - eigenvals[2]),
-		abs(eigenvals[1] - eigenvals[3])
-	)
-end
+# ╔═╡ 54a62e9e-6e3e-46a2-a753-3ea80c8a4203
+eigenStates([1,0,0], 1)
 
-# ╔═╡ 876723c4-4a25-444d-a13a-62ce5a028596
-Bs = range(0,1500,6000)
-
-# ╔═╡ ae524e28-4a06-43f0-9051-f2efca5504d7
+# ╔═╡ 9197f453-e02f-4748-bb4d-f41badd5134c
 function plotDirection(orientation)
+	Bs = range(0, 1500, 1000)
 	res = eigenStates.(Ref(orientation), Bs)
 	s1 = getindex.(res, 1)
 	s2 = getindex.(res, 2)
@@ -122,97 +93,18 @@ function plotDirection(orientation)
 	return plt
 end
 
-# ╔═╡ 434c194a-0c57-47b8-bf55-303435f7e26b
-function rotationMatrix(α, β, γ)
-	Rz = [ cos(γ) -sin(γ)  0
-	       sin(γ)  cos(γ)  0
-	            0       0  1 ]
-	Ry = [  cos(β)  0  sin(β) 
-	             0  1      0
-	       -sin(β)  0  cos(β) ]
-	Rx = [ 1      0       0
-	       0 cos(α) -sin(α)
-	       0 sin(α)  cos(α) ]
-	return Rz * Ry * Rx
-end
-
-# ╔═╡ 028027d1-b482-484a-990e-5b7abec258de
-function plotRotated(angles)
-	original = SA_F64[1, 0, 1]
-	rotated = rotationMatrix(angles.α, angles.β, angles.γ) * original
-	println(rotated)
-	plotDirection(rotated)
-end
-
-# ╔═╡ 4a210c42-fefe-4634-acb7-b2e4742c0fcb
-function orientationInput(coords::Vector)
-	
-	return combine() do Child
-		
-		inputs = [
-			md""" $(name): $(
-				Child(name, Slider(0:0.01:2π))
-			)"""
-			
-			for name in coords
-		]
-		
-		md"""
-		#### Coordinates
-		$(inputs)
-		"""
-	end
-end
-
-# ╔═╡ 5787f923-aa5a-4b01-a584-7cef5e77e9ff
-@bind angles orientationInput(["α", "β", "γ"])
-
-# ╔═╡ b1213200-cea3-4acc-8a73-9ba750b7e460
-plotRotated(angles)
-
-# ╔═╡ cd74f901-6bd5-4c0d-8412-b1ada8f28744
-# ╠═╡ disabled = true
-#=╠═╡
-@benchmark eigenStates.(Ref(orientation), data) setup=(data=rand((0:1000), 1_000_000); orientation = normalize(@SVector randn(3)))
-  ╠═╡ =#
-
-# ╔═╡ 10227260-185b-4208-a61a-a0b61d0e0142
-begin
-	a, b = transitionEnergies([1,0,0], 0)
-	1000*abs(a-b)
-end
-
-# ╔═╡ 350a6c43-eea8-4300-a134-a9a891e47092
-begin
-	local parallel = plotDirection(normalize([0, 0, 1]))
-	title!(parallel, "Párhuzamos orientáció (a)")
-	
-	local tetrahedral = plotDirection(normalize([1, -1, -1]))
-	title!(tetrahedral, "Tetraéderes orientáció (b)")
-	
-	local plt = plot(parallel, tetrahedral, layout = (2,1), size = (600,600))
-	savefig(plt, "~/Downloads/energy.pdf")
-	plt
-end
-
-# ╔═╡ 3682b238-e0a5-474d-a6ac-1940d8bb7598
-begin
-	local orthogonal = plotDirection(normalize([1, 0, 0]))
-end
+# ╔═╡ 47db665f-6f1d-4296-8ca7-be99f6d31e32
+plotDirection(normalize([1,1,0]))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-BenchmarkTools = "~1.5.0"
-Plots = "~1.40.5"
-PlutoUI = "~0.7.59"
+Plots = "~1.40.8"
 StaticArrays = "~1.9.7"
 """
 
@@ -222,13 +114,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "fbf3de534b7660698fb0a2f5f12a2017c71e1f2b"
-
-[[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.3.2"
+project_hash = "a64702e61c3ae8a0dadd8b36ab3d29f4228c67c4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -241,12 +127,6 @@ version = "1.11.0"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
-
-[[deps.BenchmarkTools]]
-deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
-git-tree-sha1 = "f1dff6729bc61f4d49e140da1af55dcd1ac97b2f"
-uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-version = "1.5.0"
 
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
@@ -261,9 +141,9 @@ version = "1.0.8+1"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "a2f1c8c668c8e3cb4cca4e57a8efdb09067bb3fd"
+git-tree-sha1 = "009060c9a6168704143100f36ab08f06c2af4642"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
-version = "1.18.0+2"
+version = "1.18.2+1"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -386,9 +266,9 @@ version = "2.6.2+0"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
-git-tree-sha1 = "b57e3acbe22f8484b4b5ff66a7499717fe1a9cc8"
+git-tree-sha1 = "53ebe7511fa11d33bec688a9178fac4e49eeee00"
 uuid = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
-version = "0.4.1"
+version = "0.4.2"
 
 [[deps.FFMPEG_jll]]
 deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
@@ -455,9 +335,9 @@ version = "0.21.0+0"
 
 [[deps.Glib_jll]]
 deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "7c82e6a6cd34e9d935e9aa4051b66c6ff3af59ba"
+git-tree-sha1 = "674ff0db93fffcd11a3573986e550d66cd4fd71f"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.80.2+0"
+version = "2.80.5+0"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -482,24 +362,6 @@ git-tree-sha1 = "401e4f3f30f43af2c8478fc008da50096ea5240f"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "8.3.1+0"
 
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.5"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.5"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "b6d6bfdd7ce25b0f9b2f6b3dd56b2673a66c8770"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "0.2.5"
-
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -518,9 +380,9 @@ version = "0.1.8"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "f389674c99bfcde17dc57454011aa44d5a260a40"
+git-tree-sha1 = "be3dc50a92e5a386872a493a10050136d4703f9b"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.6.0"
+version = "1.6.1"
 
 [[deps.JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -530,9 +392,9 @@ version = "0.21.4"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "c84a835e1a09b289ffcd2271bf2a337bbdda6637"
+git-tree-sha1 = "25ee0be4d43d0269027024d75a24c24d6c6e590c"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
-version = "3.0.3+0"
+version = "3.0.4+0"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -554,9 +416,9 @@ version = "18.1.7+0"
 
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "70c5da094887fd2cae843b8db33920bac4b6f07d"
+git-tree-sha1 = "854a9c268c43b77b0a27f22d7fab8d33cdb3a731"
 uuid = "dd4b983a-f0e5-5f8d-a1b7-129d4a5fb1ac"
-version = "2.10.2+0"
+version = "2.10.2+1"
 
 [[deps.LaTeXStrings]]
 git-tree-sha1 = "50901ebc375ed41dbf8058da26f9de442febbbec"
@@ -687,11 +549,6 @@ git-tree-sha1 = "c1dd6d7978c12545b4179fb6153b9250c96b0075"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.0.3"
 
-[[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
-
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
 git-tree-sha1 = "2fa9ee3e63fd3a4f7a9a4f4744a52f4856de82df"
@@ -767,9 +624,9 @@ version = "1.4.3"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "1b35263570443fdd9e76c76b7062116e2f374ab8"
+git-tree-sha1 = "7493f61f55a6cce7325f197443aa80d32554ba10"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.0.15+0"
+version = "3.0.15+1"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -851,12 +708,6 @@ version = "1.40.8"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "eba4810d5e6a01f612b948c9fa94f905b49087b0"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.60"
-
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
 git-tree-sha1 = "5aa36f7049a63a1528fe8f7c3f2113413ffd4e1f"
@@ -872,10 +723,6 @@ version = "1.4.3"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-version = "1.11.0"
-
-[[deps.Profile]]
-uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Qt6Base_jll]]
@@ -962,9 +809,9 @@ uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
 version = "1.0.3"
 
 [[deps.SimpleBufferStream]]
-git-tree-sha1 = "874e8867b33a00e784c8a7e4b60afe9e037b74e1"
+git-tree-sha1 = "f305871d2f381d21527c770d4788c06c097c9bc1"
 uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
-version = "1.1.0"
+version = "1.2.0"
 
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -1053,14 +900,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
 
 [[deps.TranscodingStreams]]
-git-tree-sha1 = "e84b3a11b9bece70d14cce63406bbc79ed3464d2"
+git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
-version = "0.11.2"
-
-[[deps.Tricks]]
-git-tree-sha1 = "7822b97e99a1672bfb1b49b668a6d46d58d8cbcb"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.9"
+version = "0.11.3"
 
 [[deps.URIs]]
 git-tree-sha1 = "67db6cc7b3821e19ebe75791a9dd19c9b1188f2b"
@@ -1294,9 +1136,9 @@ version = "1.2.13+1"
 
 [[deps.Zstd_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "e678132f07ddb5bfa46857f0d7620fb9be675d3b"
+git-tree-sha1 = "555d1076590a6cc2fdee2ef1469451f872d8b41b"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
-version = "1.5.6+0"
+version = "1.5.6+1"
 
 [[deps.eudev_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "gperf_jll"]
@@ -1359,9 +1201,9 @@ version = "1.18.0+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "d7015d2e18a5fd9a4f47de711837e980519781a4"
+git-tree-sha1 = "b70c870239dc3d7bc094eb2d6be9b73d27bef280"
 uuid = "b53b4c65-9356-5827-b1ea-8c7a1a84506f"
-version = "1.6.43+1"
+version = "1.6.44+0"
 
 [[deps.libvorbis_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Ogg_jll", "Pkg"]
@@ -1405,31 +1247,19 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╠═5c6e885c-2410-4ebf-81f3-0739d49c6ce5
-# ╠═d51a5d61-db63-4ce5-ab61-7bec9291633d
-# ╠═9aa760fb-99c9-4780-a9e6-2b8a6a938820
-# ╠═937dfb1a-df70-4660-9914-9acb6d1f1e63
-# ╠═d4f29a6d-77d6-43ce-af7a-f799080d2ea7
-# ╠═e6ec9d50-7dcd-4f6b-ae27-7b454c54a4a6
-# ╠═69474a6d-c3f3-4323-b7db-f2abf2d28538
-# ╠═32c0ffd1-bf4b-450b-a116-09af6f29b8a5
-# ╠═d1e01831-4fc7-41d0-8cb9-5701c7b715d2
-# ╠═f015ac54-d05b-43f1-95d7-76455b0ebf61
-# ╠═0d93a021-add6-4489-86b1-9b5374348be4
-# ╠═6d0fe41f-c668-4e7a-9fc5-1a34454384eb
-# ╠═df982852-09d0-4e95-8841-8190b2160b94
-# ╠═3369b471-4ea6-45eb-8c44-70e553ce53bc
-# ╠═81137e4b-fcd2-45eb-b907-7e8b4e3fec8b
-# ╠═876723c4-4a25-444d-a13a-62ce5a028596
-# ╠═ae524e28-4a06-43f0-9051-f2efca5504d7
-# ╠═434c194a-0c57-47b8-bf55-303435f7e26b
-# ╠═028027d1-b482-484a-990e-5b7abec258de
-# ╠═4a210c42-fefe-4634-acb7-b2e4742c0fcb
-# ╠═5787f923-aa5a-4b01-a584-7cef5e77e9ff
-# ╠═b1213200-cea3-4acc-8a73-9ba750b7e460
-# ╠═cd74f901-6bd5-4c0d-8412-b1ada8f28744
-# ╠═10227260-185b-4208-a61a-a0b61d0e0142
-# ╠═350a6c43-eea8-4300-a134-a9a891e47092
-# ╠═3682b238-e0a5-474d-a6ac-1940d8bb7598
+# ╠═934131fa-9609-11ef-381f-41208a626184
+# ╠═60b5c4a4-686c-41cc-8d1c-b50a3ef70360
+# ╠═803ccdec-f8a8-4d51-ad35-077f105425db
+# ╠═c12568bc-dc71-436f-8bdb-b6a63800a0da
+# ╠═7c9b1044-d840-4dc4-9ccf-2effb34c5dc9
+# ╠═de9bed3d-dd83-4313-9c19-4d0f2c8cbb51
+# ╠═dd6368da-dbb2-4575-a84a-88169394c781
+# ╠═66c588aa-0e5c-4e94-aa11-ec666f112b8d
+# ╠═3dc23c89-198a-41a4-b8fc-8b751cbc78dc
+# ╠═35790d64-8f3b-466e-b8f4-f744f34628e1
+# ╠═d0673672-6a1f-40bc-94c9-f20761fffb39
+# ╠═54a62e9e-6e3e-46a2-a753-3ea80c8a4203
+# ╠═9197f453-e02f-4748-bb4d-f41badd5134c
+# ╠═47db665f-6f1d-4296-8ca7-be99f6d31e32
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
