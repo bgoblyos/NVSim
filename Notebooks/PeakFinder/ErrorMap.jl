@@ -126,7 +126,7 @@ md"#### Input processing functions"
 
 # ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
 begin
-	raw = jldopen("../../data/2024-09-16.jld2")
+	raw = jldopen("../../data/2024-09-09.jld2")
 	const peakVector = SVector{8, Float32}(raw["peaks"][4,:])
 	md"Data import"
 end
@@ -203,7 +203,7 @@ function fitODMR(θs, ϕs, Bs)
 
 	dBs = CuArray{Float32}(Bs)
 	
-	threads = (8,8,4)
+	threads = (64,10,1)
 	blocks = ceil.(Int, (n1, n2, n3) ./ threads)
 
 	scores = CUDA.zeros(Float32, n1, n2, n3)
@@ -222,7 +222,8 @@ begin
 	local n = 1024
 	local θs = range(0, π, n+1)[2:end]
 	local ϕs = range(0, 2π, n+1)[2:end]
-	local fits = fitODMR(θs, ϕs, SA_F32[209.423])[:,:,1]
+	#local fits = fitODMR(θs, ϕs, SA_F32[209.423])[:,:,1]
+	local fits = fitODMR(θs, ϕs, SA_F32[211.643])[:,:,1]
 	local rmse = sqrt.(fits / 8)
 
 	local xt = (
@@ -243,41 +244,13 @@ begin
 		xlabel = "$(L"B_\phi") azimutszög",
 		ylabel = "$(L"B_\theta") polárszög"
 	)
-	savefig(plt, "~/Downloads/errormap.pdf")
-	savefig(plt, "~/Downloads/errormap.png")
+	savefig(plt, "~/Downloads/errormap_2.pdf")
+	savefig(plt, "~/Downloads/errormap_2.png")
 	plt
 end
 
-# ╔═╡ 79dcf062-819b-4291-8f0a-b9355493261e
-# ╠═╡ disabled = true
-#=╠═╡
-function segmentedFit(n, Bmin, Bmax)
-	blockSize = 1014 # Batch size
-	totalSize = blockSize * n
+# ╔═╡ f9ea9767-8615-4c94-a530-efc39d4a4bd2
 
-	bestFit = Inf
-	bestOrientation = missing
-	
-	angles = range(0, 2π/3, totalSize + 1)[2:end]
-	Bs = range(Bmin, Bmax, totalSize)
-
-	@progress for i in 1:n, j in 1:n, k in 1:n
-		iSlice = (((i - 1) * blockSize) + 1):(i * blockSize)
-		jSlice = (((j - 1) * blockSize) + 1):(j * blockSize)
-		kSlice = (((k - 1) * blockSize) + 1):(k * blockSize)
-
-		fit = fitODMR(angles[iSlice], angles[jSlice], Bs[kSlice])
-
-		if fit.bestfit < bestFit
-			bestFit = fit.bestfit
-			bestOrientation = fit.orientation
-		end
-	end
-
-	return (bestfit = bestFit, orientation = bestOrientation)
-		
-end
-  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1770,6 +1743,6 @@ version = "1.4.1+1"
 # ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 # ╠═d44a7190-adb4-460a-949e-005d9afaed73
 # ╠═d0960995-e7d2-46cf-b021-e4a71d1cf668
-# ╠═79dcf062-819b-4291-8f0a-b9355493261e
+# ╠═f9ea9767-8615-4c94-a530-efc39d4a4bd2
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

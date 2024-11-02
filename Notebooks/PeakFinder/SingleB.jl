@@ -135,7 +135,7 @@ md"#### Input processing functions"
 
 # ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
 begin
-	raw = jldopen("../../data/2024-09-16.jld2")
+	raw = jldopen("../../data/2024-09-09.jld2")
 	const peakVector = SVector{8, Float32}(raw["peaks"][4,:])
 	md"Data import"
 end
