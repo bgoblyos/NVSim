@@ -133,6 +133,7 @@ begin
 end
 
 # ╔═╡ 5aeb9ef0-b48d-4be3-a499-65549986b4a8
+#=╠═╡
 function calculateZeemans(Rx, Ry)
 	rot = Rx * Ry
 	return SVector(
@@ -142,6 +143,7 @@ function calculateZeemans(Rx, Ry)
 		unscaledZeeman(rot * dirs[4]),
 	)
 end
+  ╠═╡ =#
 
 # ╔═╡ c2a3f8ed-f977-43e7-9dec-850608074fc5
 function simKernel!(scores, Hzs, Bs)
@@ -187,6 +189,7 @@ function simKernel!(scores, Hzs, Bs)
 end
 
 # ╔═╡ fceae8d9-c4a4-4330-98de-710cd05e32dd
+#=╠═╡
 function fitODMR(αs, βs, Bs)
 	n1 = length(αs)
 	n2 = length(βs)
@@ -227,6 +230,7 @@ function fitODMR(αs, βs, Bs)
 	)
 
 end
+  ╠═╡ =#
 
 # ╔═╡ da72dbed-f6ac-455b-aa1b-7ab7ed6eb1ac
 function segmentedFit(n, Bmin, Bmax)
@@ -302,7 +306,15 @@ function getPeaks(inDir)
 end
 
 # ╔═╡ 89fd8842-1244-4228-8fab-ba7c7ef6011b
+#=╠═╡
 splits = getSplitting.(dirs)u"GHz"
+  ╠═╡ =#
+
+# ╔═╡ c27d6bf9-c7fb-4f2e-9a6d-c33312d4a70f
+md"""
+# Approximation by Schloss et al.
+[doi:10.1103/PhysRevApplied.10.034044](https://link.aps.org/doi/10.1103/PhysRevApplied.10.034044)
+"""
 
 # ╔═╡ b02abf93-e8f8-4c56-a9a8-0e59746e08b1
 begin
@@ -317,13 +329,19 @@ begin
 end
 
 # ╔═╡ 24f1bea2-321c-4a19-a51f-bc220bbc9c6f
+#=╠═╡
 Bapprox = uconvert.(u"Gauss", B * splits) # Approximate magnetic field in Gauss
+  ╠═╡ =#
 
 # ╔═╡ cc58abfb-a66b-444b-8faa-1c5e432d9996
+#=╠═╡
 norm(Bapprox)
+  ╠═╡ =#
 
 # ╔═╡ d0905a7c-cdd3-4618-bec3-555f51a31bc4
+#=╠═╡
 acos((Bapprox ⋅ Bsim)/(norm(Bapprox)*norm(Bsim))) / π * 180
+  ╠═╡ =#
 
 # ╔═╡ d64ade6c-38c0-446f-8d5d-4376ff65bb73
 md"""
@@ -347,10 +365,24 @@ function expectedSplit(dir, Bsim)
 end
 
 # ╔═╡ 383fe2d5-984a-46eb-a5ca-3b0865ee0613
+#=╠═╡
 expectedSplit.(dirs, Ref((Bsim)u"Gauss"))
+  ╠═╡ =#
 
 # ╔═╡ 4bbb07c5-b77b-4312-916a-d7c1ac69daea
+#=╠═╡
 acos((dirs[4] ⋅ Bsim)/(norm(dirs[4])*norm(Bsim))) / π * 180
+  ╠═╡ =#
+
+# ╔═╡ 4495fe57-d142-4d20-b7a1-ab2f55d710c5
+#=╠═╡
+const dirs = normalize.([
+	SA_F32[0,-sqrt(2/3),-sqrt(1/3)],
+	SA_F32[-sqrt(2/3), 0, sqrt(1/3)],
+	SA_F32[0, sqrt(2/3), -sqrt(1/3)],
+	SA_F32[sqrt(2/3), 0, sqrt(1/3)]
+])
+  ╠═╡ =#
 
 # ╔═╡ 24fa1836-b8fb-43a2-a625-0b8a9dae0db7
 # ╠═╡ disabled = true
@@ -362,14 +394,6 @@ const dirs = normalize.([
 	SA_F32[1, 1, 1]
 ])
   ╠═╡ =#
-
-# ╔═╡ 4495fe57-d142-4d20-b7a1-ab2f55d710c5
-const dirs = normalize.([
-	SA_F32[0,-sqrt(2/3),-sqrt(1/3)],
-	SA_F32[-sqrt(2/3), 0, sqrt(1/3)],
-	SA_F32[0, sqrt(2/3), -sqrt(1/3)],
-	SA_F32[sqrt(2/3), 0, sqrt(1/3)]
-])
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1876,6 +1900,7 @@ version = "1.4.1+1"
 # ╠═27862a6e-eb60-4e0f-aa39-b5966a6d38c3
 # ╠═2ee4ff01-b336-47de-8d84-c05e1265de6b
 # ╠═89fd8842-1244-4228-8fab-ba7c7ef6011b
+# ╟─c27d6bf9-c7fb-4f2e-9a6d-c33312d4a70f
 # ╠═b02abf93-e8f8-4c56-a9a8-0e59746e08b1
 # ╠═24f1bea2-321c-4a19-a51f-bc220bbc9c6f
 # ╠═cc58abfb-a66b-444b-8faa-1c5e432d9996
