@@ -110,15 +110,16 @@ end
 # ╔═╡ 671a12dd-0f91-48f4-ba24-defa9b445aad
 function getBvector(result)
 	B = result.orientation.B
-	α = result.orientation.α
-	β = result.orientation.β
+	θ = result.orientation.θ
+	ϕ = result.orientation.ϕ
 
-	B0 = SVector{3, Float32}(0, 0, 1)
+	Bvec = SA_F32[
+		sin(θ) * cos(ϕ),
+		sin(θ) * sin(ϕ),
+		cos(θ)
+	]
 
-	R = Rx(α) * Ry(β)
-	M = inv(R)
-
-	B * (M * B0)
+	return B * Bvec
 end
 
 # ╔═╡ f4733ba9-59a4-41d6-8690-dc3bcf9f7066
@@ -132,9 +133,31 @@ end
 # ╔═╡ 0b624019-90c2-4790-b793-4d9d3f3833db
 md"#### Input processing functions"
 
+# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
+begin
+	raw = jldopen("../../data/2024-09-16.jld2")
+	const peakVector = SVector{8, Float32}(raw["peaks"][4,:])
+	md"Data import"
+end
+
+# ╔═╡ cecf4c77-9791-4ee0-b008-31f4981c7c8b
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	raw = jldopen("../../data/highres_heatmap/110.jld2")
+	const peakVector = SVector{8, Float32}(raw["peaks"])
+	md"Data import"
+end
+  ╠═╡ =#
+
 # ╔═╡ 23a93340-5f79-47ec-b135-0f77701306be
-function calculateZeemans(Rx, Ry)
-	rot = Rx * Ry
+function calculateZeemans(θ, ϕ)
+	Bvec = SA_F32[
+		sin(θ) * cos(ϕ),
+		sin(θ) * sin(ϕ),
+		cos(θ)
+	]
+	rot = R(Bvec, SA_F32[0, 0, 1])
 	return SVector(
 		unscaledZeeman(rot * dirs[1]),
 		unscaledZeeman(rot * dirs[2]),
@@ -187,18 +210,15 @@ function simKernel!(scores, Hzs, Bs)
 end
 
 # ╔═╡ d44a7190-adb4-460a-949e-005d9afaed73
-function fitODMR(αs, βs, Bs)
-	n1 = length(αs)
-	n2 = length(βs)
+function fitODMR(θs, ϕs, Bs)
+	n1 = length(θs)
+	n2 = length(ϕs)
 	n3 = length(Bs)
 	
-	dαs = CuArray{Float32}(αs)
-	dβs = CuArray{Float32}(βs)
+	dθs = CuArray{Float32}(θs)
+	dϕs = CuArray{Float32}(ϕs)
 
-	Rxs = Rx.(dαs)
-	Rys = Ry.(dβs)
-
-	Hzs = calculateZeemans.(Rxs, Rys')
+	Hzs = calculateZeemans.(dθs, dϕs')
 
 	dBs = CuArray{Float32}(Bs)
 	
@@ -213,15 +233,15 @@ function fitODMR(αs, βs, Bs)
 	bestfit = min[1]
 	coords = min[2]
 
-	α = αs[coords[1]]
-	β = βs[coords[2]]
+	θ = θs[coords[1]]
+	ϕ = ϕs[coords[2]]
 	B = Bs[coords[3]]
 	
 	return (
 		bestfit = bestfit,
 		orientation = (
-			α = α,
-			β = β,
+			θ = θ,
+			ϕ = ϕ,
 			B = B
 		)
 	)
@@ -242,7 +262,7 @@ function segmentedFit(n, Bmin, Bmax)
 	bestFit = Inf
 	bestOrientation = missing
 	
-	angles = range(0, 2π/3, totalSize + 1)[2:end]
+	angles = range(0, π/2, totalSize + 1)[2:end]
 	Bs = range(Bmin, Bmax, totalSize)
 
 	@progress for i in 1:n, j in 1:n, k in 1:n
@@ -270,25 +290,6 @@ result = segmentedFit(2, 0, 500)
 
 # ╔═╡ b3da5b4f-ef73-42b6-8f69-c7446b6c5d93
 getBvector(result)
-
-# ╔═╡ cecf4c77-9791-4ee0-b008-31f4981c7c8b
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	raw = jldopen("../../data/highres_heatmap/110.jld2")
-	const peakVector = SVector{8, Float32}(raw["peaks"])
-	md"Data import"
-end
-  ╠═╡ =#
-
-# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
-#=╠═╡
-begin
-	raw = jldopen("../../data/2024-09-16.jld2")
-	const peakVector = SVector{8, Float32}(raw["peaks"][4,:])
-	md"Data import"
-end
-  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
