@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.19.47
 
 using Markdown
 using InteractiveUtils
@@ -9,6 +9,9 @@ using LinearAlgebra
 
 # ╔═╡ 6ddb2a92-b65e-417e-b3ff-7c192707b766
 using StaticArrays
+
+# ╔═╡ 8e49ac22-a705-4c1d-a63f-1fedd2809223
+using Combinatorics
 
 # ╔═╡ de808a72-2b70-43db-8add-12710ae58f71
 # ╠═╡ disabled = true
@@ -41,10 +44,9 @@ getAngle(a, b) = acos((a ⋅ b)/(norm(a)*norm(b)))
 
 # ╔═╡ de322617-50b5-4430-a356-cbf6c815606f
 function allCombinations(B0)
-	B1 = shift(B0)
-	B2 = shift(B1)
+	Bperm = permutations(B0)
 	results = []
-	for B in [B0, B1, B2]
+	for B in Bperm
 		for i in [1, -1], j in [1, -1], k in [1, -1]
 			D = Diagonal([i,j,k])
 			push!(results, D*B)
@@ -65,10 +67,10 @@ md"""
 """
 
 # ╔═╡ 6bb4c4df-df30-4247-8ecd-ffd784e71e66
-B1 = [0.828665, -0.440783, 0.345000]
+B1 = [0.828665, 0.440783, 0.345000]
 
 # ╔═╡ fe24c7bc-6a66-43c7-bed5-c466d385a17f
-B2 = [0.206103, -0.557823, 0.803962]
+B2 = [0.803962, 0.206103, 0.557823 ]
 
 # ╔═╡ e796914a-719f-4822-887e-6cd79f0ced7a
 allAngles(B1, B2) / π * 180
@@ -76,10 +78,12 @@ allAngles(B1, B2) / π * 180
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+Combinatorics = "~1.0.2"
 StaticArrays = "~1.9.7"
 """
 
@@ -89,11 +93,16 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "f843b6f09db8b41ed3ba43a373fe406ae54e28a9"
+project_hash = "af61c377fee52b80a3cfbb108c4575130d49211b"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
+
+[[deps.Combinatorics]]
+git-tree-sha1 = "08c8b6831dc00bfea825826be0bc8336fc369860"
+uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+version = "1.0.2"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -182,6 +191,7 @@ version = "5.11.0+0"
 # ╔═╡ Cell order:
 # ╠═ef95f9ba-95c3-11ef-185b-193fa9811b10
 # ╠═6ddb2a92-b65e-417e-b3ff-7c192707b766
+# ╠═8e49ac22-a705-4c1d-a63f-1fedd2809223
 # ╠═de808a72-2b70-43db-8add-12710ae58f71
 # ╠═8f850873-7018-4fee-bc1b-7f4b2a6fa074
 # ╠═a1df879e-b611-4f3a-9b13-db1a80e205dd

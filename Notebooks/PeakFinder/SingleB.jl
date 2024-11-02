@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.19.47
 
 using Markdown
 using InteractiveUtils
@@ -91,6 +91,22 @@ function Ry(t)
 	                      -sin(t),  0,  cos(t)  )
 end
 
+# ╔═╡ 09aef573-f6f3-4315-93c7-43c7c81deb8c
+function R(v1, v2) # rotation matrix that brings v1 to v2
+	u = v1 × v2
+	c = v1 ⋅ v2
+	s = norm(u)
+	u = normalize(u)
+
+	asym = SMatrix{3,3,Float32}(
+             0,    -u[3],  u[2],
+             u[3],  0,    -u[1],
+            -u[2],  u[1],  0,
+	)
+	
+    rotation_matrix = c * I + s * asym + (1 - c) * (u * u')
+end
+
 # ╔═╡ 671a12dd-0f91-48f4-ba24-defa9b445aad
 function getBvector(result)
 	B = result.orientation.B
@@ -115,41 +131,6 @@ end
 
 # ╔═╡ 0b624019-90c2-4790-b793-4d9d3f3833db
 md"#### Input processing functions"
-
-# ╔═╡ 9d37429c-a41b-4024-a02e-d934cd1ee48b
-function findODMRPeaks(freqs, signal)
-	pks, vals = findmaxima(signal)
-	_, proms = peakproms!(pks, signal)
-	decreasingProms = sort(proms, rev = true)
-	peakFreqs = zeros(8)
-	for i in 1:8
-		peakIndex = findfirst(==(decreasingProms[i]), proms)
-		peakFreqs[i] = freqs[pks[peakIndex]]
-	end
-	return sort(peakFreqs)
-end
-
-# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
-begin
-	testData = jldopen("../../data/2024-09-09.jld2")
-	const peakVector = SVector{8, Float32}(testData["peaks"][2,:])
-	VHs = testData["VHs"]
-	IMs = testData["IMs"]
-	md"Data import"
-end
-
-# ╔═╡ 05c0b368-be58-4ac5-ba7d-b917126b331a
-# ╠═╡ disabled = true
-# ╠═╡ skip_as_script = true
-#=╠═╡
-begin
-	peakMatrix = zeros(length(Bs), 8)
-	for i in 1:length(Bs)
-		peakMatrix[i,:] = findODMRPeaks(freqs, signals[i,:])
-	end
-	peakMatrix
-end
-  ╠═╡ =#
 
 # ╔═╡ 23a93340-5f79-47ec-b135-0f77701306be
 function calculateZeemans(Rx, Ry)
@@ -289,6 +270,25 @@ result = segmentedFit(2, 0, 500)
 
 # ╔═╡ b3da5b4f-ef73-42b6-8f69-c7446b6c5d93
 getBvector(result)
+
+# ╔═╡ cecf4c77-9791-4ee0-b008-31f4981c7c8b
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	raw = jldopen("../../data/highres_heatmap/110.jld2")
+	const peakVector = SVector{8, Float32}(raw["peaks"])
+	md"Data import"
+end
+  ╠═╡ =#
+
+# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
+#=╠═╡
+begin
+	raw = jldopen("../../data/2024-09-16.jld2")
+	const peakVector = SVector{8, Float32}(raw["peaks"][4,:])
+	md"Data import"
+end
+  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1768,13 +1768,13 @@ version = "1.4.1+1"
 # ╟─bc31145a-4d0c-41c9-ba8e-10af53d24bf5
 # ╟─f5859816-6659-4ce7-9e28-c20b803849ba
 # ╟─2cddcd6c-f3d0-4308-9b60-b3c70507cab5
+# ╠═09aef573-f6f3-4315-93c7-43c7c81deb8c
 # ╟─671a12dd-0f91-48f4-ba24-defa9b445aad
 # ╟─f4733ba9-59a4-41d6-8690-dc3bcf9f7066
 # ╟─f86f903b-4418-4438-abca-afb8a8b02a9e
 # ╟─0b624019-90c2-4790-b793-4d9d3f3833db
-# ╟─9d37429c-a41b-4024-a02e-d934cd1ee48b
 # ╠═f8bf9242-71a0-4de7-b973-367dd1e42c45
-# ╠═05c0b368-be58-4ac5-ba7d-b917126b331a
+# ╠═cecf4c77-9791-4ee0-b008-31f4981c7c8b
 # ╠═23a93340-5f79-47ec-b135-0f77701306be
 # ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 # ╠═d44a7190-adb4-460a-949e-005d9afaed73

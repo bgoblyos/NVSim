@@ -4,36 +4,34 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 77656e21-5127-49cf-b244-5a69aebe6ec0
+# ╔═╡ 0a0a94c8-653d-11ef-13fa-b98a27cb8524
 using Plots
 
-# ╔═╡ cf0b4d55-fa1a-4841-a8d3-7d74a7579dc6
+# ╔═╡ dbc2d3f9-5d70-4733-ae40-8750a8ea04ed
 using CUDA
 
-# ╔═╡ 3d424ebb-7337-4c8e-a75b-1e2e87f858c4
+# ╔═╡ 77d5e493-08d0-4433-b8e5-0344de775b6e
 using Peaks
 
-# ╔═╡ eeaf595c-aca5-47ab-977d-c1d8919d67fe
+# ╔═╡ c704e52b-e516-495c-84e1-3557466004b2
 using JLD2
 
-# ╔═╡ c689c3e4-32bb-4b89-ad4d-c4a12efcb82d
+# ╔═╡ d67e3371-9b78-45dd-a2d0-38982080bca4
 using StaticArrays
 
-# ╔═╡ a8c60801-d12e-4d22-8fc7-7bb251d5d0d2
+# ╔═╡ 7b7f582c-ce95-4f6a-a6de-29c3cf16e356
 using LinearAlgebra
 
-# ╔═╡ a7c5e334-2b90-4770-a4f9-e19de07a4d4e
+# ╔═╡ 0536ab28-19b0-4c68-ab5b-67f87cc5a2e2
 using ProgressLogging
 
-# ╔═╡ 3d867ebb-afb7-435d-a9fc-34296de247a0
-using Unitful
+# ╔═╡ 7ef7f31d-557b-42bf-a52e-4554c52f4ac4
+using LaTeXStrings
 
-# ╔═╡ 2190b9ea-6e1e-4e8e-ae95-657209b3911a
-md"""
-# Repeat numeric fit using different NV directions
-"""
+# ╔═╡ 935b82ff-45fd-4a7b-a753-047e1df90a6c
+default( fontfamily = "Computer Modern")
 
-# ╔═╡ e617e004-b775-4791-bf0e-846a707989fe
+# ╔═╡ ad79aef6-907f-4c6d-8e15-e20ecf669e3b
 begin
 	const MHzToK = Float32(4.7991939324e-5)
 	const GHzToK = Float32(4.7991939324e-2)
@@ -44,7 +42,7 @@ begin
 	md"Constants"
 end
 
-# ╔═╡ 18df2103-66f3-4fc9-8307-4aaeb286fdfb
+# ╔═╡ 6d1f7bba-54ea-47dd-a23b-e88185e8960b
 begin
 	const spinX = SMatrix{3,3,ComplexF32}([ 0 1 0
                                             1 0 1
@@ -58,7 +56,7 @@ begin
 	md"Spin matrices"
 end
 
-# ╔═╡ a7ad734b-9be2-478f-8871-86fc22e35667
+# ╔═╡ 0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
 begin
 	const spinX2 = spinX^2
 	const spinY2 = spinY^2
@@ -66,75 +64,81 @@ begin
 	md"Spin matrices squared"
 end
 
-# ╔═╡ 35675678-4f0d-4089-b9ee-f390cea4c42d
+# ╔═╡ 1cbe30b8-eb82-4bef-b774-0d19da33863a
 begin
 	const spinVector = @SVector [spinX, spinY, spinZ]
 	md"Spin vector"
 end
 
-# ╔═╡ 6b221414-0886-48ff-9d5a-7ece30ec5aab
+# ╔═╡ 27b097d2-9989-45d3-8725-3e9a4820024e
 const Hnv = begin
     d = D * (spinZ2 - (spinX2 + spinY2 + spinZ2) / 3)
     e = E * (spinX2 - spinY2)
     MHzToK * (d + e)
 end
 
-# ╔═╡ ef5e33c4-4bd0-49f1-a405-15a43e735d93
-md"""
-New NV direction vectors
-"""
+# ╔═╡ e9b9d1bf-c257-45c5-93a2-25a99efaf73f
+const dirs = normalize.([SA_F32[1,-1,-1], SA_F32[-1,1,-1], SA_F32[-1,-1,1], SA_F32[1,1,1]])
 
-# ╔═╡ bca5a494-7158-45f4-a18b-3bd968f14cd3
+# ╔═╡ bc31145a-4d0c-41c9-ba8e-10af53d24bf5
 md"#### Rotation functions"
 
-# ╔═╡ 4ae04550-03a2-4989-9282-6de34f25b737
+# ╔═╡ f5859816-6659-4ce7-9e28-c20b803849ba
 function Rx(t)
 	SMatrix{3,3,Float32}(  1,       0,       0,
 	                       0,  cos(t), -sin(t),
 	                       0,  sin(t),  cos(t)  )
 end
 
-# ╔═╡ fac09cc3-4a07-4cd5-b88b-a0c5d4abcec6
+# ╔═╡ 2cddcd6c-f3d0-4308-9b60-b3c70507cab5
 function Ry(t)
 	SMatrix{3,3,Float32}(  cos(t),  0,  sin(t),
 	                            0,  1,       0,
 	                      -sin(t),  0,  cos(t)  )
 end
 
-# ╔═╡ 5eff4876-0d5c-4895-ae95-87916282e531
-function getBvector(result)
-	B = result.orientation.B
-	α = result.orientation.α
-	β = result.orientation.β
+# ╔═╡ fab13fc7-566a-452b-a9a6-0707b57a5869
+function R(v1, v2) # rotation matrix that brings v1 to v2
+	u = v1 × v2
+	c = v1 ⋅ v2
+	s = norm(u)
+	u = normalize(u)
 
-	B0 = SVector{3, Float32}(0, 0, 1)
-
-	R = Rx(α) * Ry(β)
-	M = inv(R)
-
-	B * (M * B0)
+	asym = SMatrix{3,3,Float32}(
+             0,    -u[3],  u[2],
+             u[3],  0,    -u[1],
+            -u[2],  u[1],  0,
+	)
+	
+    rotation_matrix = c * I + s * asym + (1 - c) * (u * u')
 end
 
-# ╔═╡ 052271ac-2b9a-454b-be70-521a923cfc31
+# ╔═╡ f4733ba9-59a4-41d6-8690-dc3bcf9f7066
 md"#### NV center simulation functions"
 
-# ╔═╡ 94503c1c-4465-429b-b173-4aeb4ef27870
+# ╔═╡ f86f903b-4418-4438-abca-afb8a8b02a9e
 function unscaledZeeman(dir)
 	gToK * g * sum(spinVector .* dir)
 end
 
-# ╔═╡ 84c5db25-e4c9-456a-ab86-3e71d3f796c4
+# ╔═╡ 0b624019-90c2-4790-b793-4d9d3f3833db
+md"#### Input processing functions"
+
+# ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
 begin
-	testData = jldopen("../../data/2024-09-09.jld2")
-	const peakVector = SVector{8, Float32}(testData["peaks"][1,:])
-	VHs = testData["VHs"]
-	IMs = testData["IMs"]
-	md"Data import (50 Gauss meausrement)"
+	raw = jldopen("../../data/2024-09-16.jld2")
+	const peakVector = SVector{8, Float32}(raw["peaks"][4,:])
+	md"Data import"
 end
 
-# ╔═╡ 5aeb9ef0-b48d-4be3-a499-65549986b4a8
-function calculateZeemans(Rx, Ry)
-	rot = Rx * Ry
+# ╔═╡ 23a93340-5f79-47ec-b135-0f77701306be
+function calculateZeemans(θ, ϕ)
+	Bvec = SA_F32[
+		sin(θ) * cos(ϕ),
+		sin(θ) * sin(ϕ),
+		cos(θ)
+	]
+	rot = R(Bvec, SA_F32[0, 0, 1])
 	return SVector(
 		unscaledZeeman(rot * dirs[1]),
 		unscaledZeeman(rot * dirs[2]),
@@ -143,7 +147,7 @@ function calculateZeemans(Rx, Ry)
 	)
 end
 
-# ╔═╡ c2a3f8ed-f977-43e7-9dec-850608074fc5
+# ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 function simKernel!(scores, Hzs, Bs)
     i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
 	j = (blockIdx().y - 1) * blockDim().y + threadIdx().y
@@ -186,19 +190,16 @@ function simKernel!(scores, Hzs, Bs)
     return
 end
 
-# ╔═╡ fceae8d9-c4a4-4330-98de-710cd05e32dd
-function fitODMR(αs, βs, Bs)
-	n1 = length(αs)
-	n2 = length(βs)
+# ╔═╡ d44a7190-adb4-460a-949e-005d9afaed73
+function fitODMR(θs, ϕs, Bs)
+	n1 = length(θs)
+	n2 = length(ϕs)
 	n3 = length(Bs)
 	
-	dαs = CuArray{Float32}(αs)
-	dβs = CuArray{Float32}(βs)
+	dθs = CuArray{Float32}(θs)
+	dϕs = CuArray{Float32}(ϕs)
 
-	Rxs = Rx.(dαs)
-	Rys = Ry.(dβs)
-
-	Hzs = calculateZeemans.(Rxs, Rys')
+	Hzs = calculateZeemans.(dθs, dϕs')
 
 	dBs = CuArray{Float32}(Bs)
 	
@@ -209,26 +210,47 @@ function fitODMR(αs, βs, Bs)
 	
 	@cuda fastmath=true threads=threads blocks=blocks simKernel!(scores, Hzs, Bs)
 
-	min = findmin(scores)
-	bestfit = min[1]
-	coords = min[2]
+	CPUscores = zeros(Float32, n1, n2, n3)
+	copyto!(CPUscores, scores)
 
-	α = αs[coords[1]]
-	β = βs[coords[2]]
-	B = Bs[coords[3]]
-	
-	return (
-		bestfit = bestfit,
-		orientation = (
-			α = α,
-			β = β,
-			B = B
-		)
-	)
+	return CPUscores
 
 end
 
-# ╔═╡ da72dbed-f6ac-455b-aa1b-7ab7ed6eb1ac
+# ╔═╡ d0960995-e7d2-46cf-b021-e4a71d1cf668
+begin
+	local n = 1024
+	local θs = range(0, π, n+1)[2:end]
+	local ϕs = range(0, 2π, n+1)[2:end]
+	local fits = fitODMR(θs, ϕs, SA_F32[209.423])[:,:,1]
+	local rmse = sqrt.(fits / 8)
+
+	local xt = (
+		0:(π/2):2π,
+		[L"0", L"\frac{\pi}{2}", L"\pi", L"\frac{3\pi}{2}", L"2\pi"]
+	)
+	local yt = (
+	0:(π/4):π,
+		[L"0", L"\frac{\pi}{4}", L"\frac{\pi}{2}", L"\frac{3\pi}{4}", L"\pi"]
+	)
+	local xticklabels
+	local ytickloc = 0
+	local plt = heatmap(
+		ϕs, θs, rmse,
+		cbar = false,
+		xticks = xt,
+		yticks = yt,
+		xlabel = "$(L"B_\phi") azimutszög",
+		ylabel = "$(L"B_\theta") polárszög"
+	)
+	savefig(plt, "~/Downloads/errormap.pdf")
+	savefig(plt, "~/Downloads/errormap.png")
+	plt
+end
+
+# ╔═╡ 79dcf062-819b-4291-8f0a-b9355493261e
+# ╠═╡ disabled = true
+#=╠═╡
 function segmentedFit(n, Bmin, Bmax)
 	blockSize = 1014 # Batch size
 	totalSize = blockSize * n
@@ -236,7 +258,7 @@ function segmentedFit(n, Bmin, Bmax)
 	bestFit = Inf
 	bestOrientation = missing
 	
-	angles = range(0, π/2, totalSize + 1)[2:end]
+	angles = range(0, 2π/3, totalSize + 1)[2:end]
 	Bs = range(Bmin, Bmax, totalSize)
 
 	@progress for i in 1:n, j in 1:n, k in 1:n
@@ -255,142 +277,28 @@ function segmentedFit(n, Bmin, Bmax)
 	return (bestfit = bestFit, orientation = bestOrientation)
 		
 end
-
-# ╔═╡ 5231a320-8939-4cb3-b4be-aa582621dcf4
-result = segmentedFit(2, 0, 500)
-
-# ╔═╡ e5c12519-29ff-4e21-9c5b-3365620d5037
-Bsim = getBvector(result)
-
-# ╔═╡ b714cdc6-7406-46c4-a0c5-75a5972599c7
-norm(Bsim)
-
-# ╔═╡ 2680aa1b-9e12-4d33-a657-66026c981550
-function R(v1, v2) # rotation matrix that brings v1 to v2
-	u = v1 × v2
-	c = v1 ⋅ v2
-	s = norm(u)
-	u = normalize(u)
-
-	asym = [
-             0    -u[3]  u[2]
-             u[3]  0    -u[1]
-            -u[2]  u[1]  0
-        ]
-	
-    rotation_matrix = c * I + s * asym + (1 - c) * (u * u')
-end
-
-# ╔═╡ 27862a6e-eb60-4e0f-aa39-b5966a6d38c3
-function getSplitting(inDir)
-	u = normalize(Bsim)
-	rot = R(u, SA_F64[0, 0, 1])
-	dir = rot * inDir
-	Hz = norm(Bsim) * unscaledZeeman(dir)
-	energies = eigvals(Hnv + Hz)/GHzToK
-	split = abs(energies[2] - energies[3])
-end
-
-# ╔═╡ 2ee4ff01-b336-47de-8d84-c05e1265de6b
-function getPeaks(inDir)
-	u = normalize(Bsim)
-	rot = R(u, SA_F64[0, 0, 1])
-	dir = rot * inDir
-	Hz = norm(Bsim) * unscaledZeeman(dir)
-	energies = eigvals(Hnv + Hz)/GHzToK
-	return [abs(energies[2] - energies[1]), abs(energies[3] - energies[1])]
-end
-
-# ╔═╡ 89fd8842-1244-4228-8fab-ba7c7ef6011b
-splits = getSplitting.(dirs)u"GHz"
-
-# ╔═╡ b02abf93-e8f8-4c56-a9a8-0e59746e08b1
-begin
-	const μ = 9.2740100657e-24 # J / T
-	const h = 6.62607015e-34 # J s
-	const A = g * μ / h * [ 0.10388 −0.89383  −0.46341
-							0.90435  0.04596  −0.38836
-							0.10524 −0.69511   0.73528
-							0.75551  0.04984   0.66268
-	] # Hz/T
-	const B = pinv(A)u"T/Hz" # T/Hz ?
-end
-
-# ╔═╡ 24f1bea2-321c-4a19-a51f-bc220bbc9c6f
-Bapprox = uconvert.(u"Gauss", B * splits) # Approximate magnetic field in Gauss
-
-# ╔═╡ cc58abfb-a66b-444b-8faa-1c5e432d9996
-norm(Bapprox)
-
-# ╔═╡ d0905a7c-cdd3-4618-bec3-555f51a31bc4
-acos((Bapprox ⋅ Bsim)/(norm(Bapprox)*norm(Bsim))) / π * 180
-
-# ╔═╡ d64ade6c-38c0-446f-8d5d-4376ff65bb73
-md"""
-[Linearization model by Qnami](https://qnami.ch/wp-content/uploads/2020/12/2020-12-07-Qnami-TN1-The-NV-center-1.pdf)
-"""
-
-# ╔═╡ dc5d0db3-5469-40e1-b981-d62871a771d4
-const γ = 28u"MHz/mT" # MHz / Gauss
-
-# ╔═╡ 2dbf02da-6d1b-4f7f-8de8-9959e0c2aa9a
-getα(B) = γ * norm(B) / (D)u"MHz" # dimensionless
-
-# ╔═╡ 9c0612b3-d8d1-4ba8-9a4a-901c29fe2292
-function expectedSplit(dir, Bsim)
-	θB = acos((dir ⋅ Bsim)/(norm(dir)*norm(Bsim)))
-	α = getα(Bsim)
-	ν1 = (D)u"MHz" *(1 + (α*cos(θB) + 1.5*α^2sin(θB)^2 + α^3*(0.125sin(θB)^3 * tan(θB) - 0.5sin(θB)^2 * cos(θB)) ))
-	ν2 = (D)u"MHz" *(1 - (α*cos(θB) + 1.5*α^2sin(θB)^2 - α^3*(0.125sin(θB)^3 * tan(θB) - 0.5sin(θB)^2 * cos(θB)) ))
-
-	return abs(ν1 - ν2)
-end
-
-# ╔═╡ 383fe2d5-984a-46eb-a5ca-3b0865ee0613
-expectedSplit.(dirs, Ref((Bsim)u"Gauss"))
-
-# ╔═╡ 4bbb07c5-b77b-4312-916a-d7c1ac69daea
-acos((dirs[4] ⋅ Bsim)/(norm(dirs[4])*norm(Bsim))) / π * 180
-
-# ╔═╡ 24fa1836-b8fb-43a2-a625-0b8a9dae0db7
-# ╠═╡ disabled = true
-#=╠═╡
-const dirs = normalize.([
-	SA_F32[1,-1,-1],
-	SA_F32[-1,1,-1],
-	SA_F32[-1, -1, 1],
-	SA_F32[1, 1, 1]
-])
   ╠═╡ =#
-
-# ╔═╡ 4495fe57-d142-4d20-b7a1-ab2f55d710c5
-const dirs = normalize.([
-	SA_F32[0,-sqrt(2/3),-sqrt(1/3)],
-	SA_F32[-sqrt(2/3), 0, sqrt(1/3)],
-	SA_F32[0, sqrt(2/3), -sqrt(1/3)],
-	SA_F32[sqrt(2/3), 0, sqrt(1/3)]
-])
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 CUDA = "~5.5.2"
 JLD2 = "~0.5.5"
+LaTeXStrings = "~1.4.0"
 Peaks = "~0.5.3"
 Plots = "~1.40.8"
 ProgressLogging = "~0.1.4"
 StaticArrays = "~1.9.7"
-Unitful = "~1.21.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -399,7 +307,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "4acfd5f10ac4dec32c5b58092f6d35ce7f81eef5"
+project_hash = "75432a85b96ec291c6e834db1bb4810f315cbc47"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -659,9 +567,9 @@ version = "4.4.4+1"
 
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "62ca0547a14c57e98154423419d8a342dca75ca9"
+git-tree-sha1 = "82d8afa92ecf4b52d78d869f038ebfb881267322"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.16.4"
+version = "1.16.3"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -727,15 +635,15 @@ version = "0.27.8"
 
 [[deps.GR]]
 deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Preferences", "Printf", "Qt6Wayland_jll", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "p7zip_jll"]
-git-tree-sha1 = "ee28ddcd5517d54e417182fec3886e7412d3926f"
+git-tree-sha1 = "629693584cef594c3f6f99e76e7a7ad17e60e8d5"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.73.8"
+version = "0.73.7"
 
 [[deps.GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "FreeType2_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Qt6Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "f31929b9e67066bee48eec8b03c0df47d31a74b3"
+git-tree-sha1 = "a8863b69c2a0859f2c2c87ebdc4c6712e88bdf0d"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.73.8+0"
+version = "0.73.7+0"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -819,9 +727,9 @@ version = "0.1.8"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "be3dc50a92e5a386872a493a10050136d4703f9b"
+git-tree-sha1 = "f389674c99bfcde17dc57454011aa44d5a260a40"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.6.1"
+version = "1.6.0"
 
 [[deps.JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -864,10 +772,10 @@ uuid = "c1c5ebd0-6772-5130-a774-d5fcae4a789d"
 version = "3.100.2+0"
 
 [[deps.LERC_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "36bdbc52f13a7d1dcb0f3cd694e01677a515655b"
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "bf36f528eec6634efc60d7ec062008f171071434"
 uuid = "88015f11-f218-50d7-93a8-a6af411a945d"
-version = "4.0.0+0"
+version = "3.0.0+1"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Requires", "Unicode"]
@@ -995,9 +903,9 @@ version = "2.40.1+0"
 
 [[deps.Libtiff_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
-git-tree-sha1 = "b404131d06f7886402758c9ce2214b636eb4d54a"
+git-tree-sha1 = "2da088d113af58221c52828a80378e16be7d037a"
 uuid = "89763e89-9b03-5906-acba-b20f662cd828"
-version = "4.7.0+0"
+version = "4.5.1+1"
 
 [[deps.Libuuid_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1188,10 +1096,10 @@ uuid = "ccf2f8ad-2431-5c83-bf29-c5338b663b6a"
 version = "3.2.0"
 
 [[deps.PlotUtils]]
-deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "StableRNGs", "Statistics"]
-git-tree-sha1 = "650a022b2ce86c7dcfbdecf00f78afeeb20e5655"
+deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "Statistics"]
+git-tree-sha1 = "7b1a9df27f072ac4c9c7cbe5efb198489258d1f5"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.4.2"
+version = "1.4.1"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "PrecompileTools", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "TOML", "UUIDs", "UnicodeFun", "UnitfulLatexify", "Unzip"]
@@ -1374,12 +1282,6 @@ version = "1.2.1"
 deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 version = "1.11.0"
-
-[[deps.StableRNGs]]
-deps = ["Random"]
-git-tree-sha1 = "83e6cce8324d49dfaf9ef059227f91ed4441a8e5"
-uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
-version = "1.0.2"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
@@ -1841,50 +1743,33 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╠═77656e21-5127-49cf-b244-5a69aebe6ec0
-# ╠═cf0b4d55-fa1a-4841-a8d3-7d74a7579dc6
-# ╠═3d424ebb-7337-4c8e-a75b-1e2e87f858c4
-# ╠═eeaf595c-aca5-47ab-977d-c1d8919d67fe
-# ╠═c689c3e4-32bb-4b89-ad4d-c4a12efcb82d
-# ╠═a8c60801-d12e-4d22-8fc7-7bb251d5d0d2
-# ╠═a7c5e334-2b90-4770-a4f9-e19de07a4d4e
-# ╠═3d867ebb-afb7-435d-a9fc-34296de247a0
-# ╟─2190b9ea-6e1e-4e8e-ae95-657209b3911a
-# ╠═e617e004-b775-4791-bf0e-846a707989fe
-# ╠═18df2103-66f3-4fc9-8307-4aaeb286fdfb
-# ╠═a7ad734b-9be2-478f-8871-86fc22e35667
-# ╠═35675678-4f0d-4089-b9ee-f390cea4c42d
-# ╠═6b221414-0886-48ff-9d5a-7ece30ec5aab
-# ╟─ef5e33c4-4bd0-49f1-a405-15a43e735d93
-# ╠═4495fe57-d142-4d20-b7a1-ab2f55d710c5
-# ╠═24fa1836-b8fb-43a2-a625-0b8a9dae0db7
-# ╟─bca5a494-7158-45f4-a18b-3bd968f14cd3
-# ╟─4ae04550-03a2-4989-9282-6de34f25b737
-# ╟─fac09cc3-4a07-4cd5-b88b-a0c5d4abcec6
-# ╟─5eff4876-0d5c-4895-ae95-87916282e531
-# ╟─052271ac-2b9a-454b-be70-521a923cfc31
-# ╠═94503c1c-4465-429b-b173-4aeb4ef27870
-# ╠═84c5db25-e4c9-456a-ab86-3e71d3f796c4
-# ╠═5aeb9ef0-b48d-4be3-a499-65549986b4a8
-# ╠═c2a3f8ed-f977-43e7-9dec-850608074fc5
-# ╠═fceae8d9-c4a4-4330-98de-710cd05e32dd
-# ╠═da72dbed-f6ac-455b-aa1b-7ab7ed6eb1ac
-# ╠═5231a320-8939-4cb3-b4be-aa582621dcf4
-# ╠═e5c12519-29ff-4e21-9c5b-3365620d5037
-# ╠═b714cdc6-7406-46c4-a0c5-75a5972599c7
-# ╠═2680aa1b-9e12-4d33-a657-66026c981550
-# ╠═27862a6e-eb60-4e0f-aa39-b5966a6d38c3
-# ╠═2ee4ff01-b336-47de-8d84-c05e1265de6b
-# ╠═89fd8842-1244-4228-8fab-ba7c7ef6011b
-# ╠═b02abf93-e8f8-4c56-a9a8-0e59746e08b1
-# ╠═24f1bea2-321c-4a19-a51f-bc220bbc9c6f
-# ╠═cc58abfb-a66b-444b-8faa-1c5e432d9996
-# ╠═d0905a7c-cdd3-4618-bec3-555f51a31bc4
-# ╟─d64ade6c-38c0-446f-8d5d-4376ff65bb73
-# ╠═dc5d0db3-5469-40e1-b981-d62871a771d4
-# ╠═2dbf02da-6d1b-4f7f-8de8-9959e0c2aa9a
-# ╠═9c0612b3-d8d1-4ba8-9a4a-901c29fe2292
-# ╠═383fe2d5-984a-46eb-a5ca-3b0865ee0613
-# ╠═4bbb07c5-b77b-4312-916a-d7c1ac69daea
+# ╠═0a0a94c8-653d-11ef-13fa-b98a27cb8524
+# ╠═dbc2d3f9-5d70-4733-ae40-8750a8ea04ed
+# ╠═77d5e493-08d0-4433-b8e5-0344de775b6e
+# ╠═c704e52b-e516-495c-84e1-3557466004b2
+# ╠═d67e3371-9b78-45dd-a2d0-38982080bca4
+# ╠═7b7f582c-ce95-4f6a-a6de-29c3cf16e356
+# ╠═0536ab28-19b0-4c68-ab5b-67f87cc5a2e2
+# ╠═7ef7f31d-557b-42bf-a52e-4554c52f4ac4
+# ╠═935b82ff-45fd-4a7b-a753-047e1df90a6c
+# ╠═ad79aef6-907f-4c6d-8e15-e20ecf669e3b
+# ╟─6d1f7bba-54ea-47dd-a23b-e88185e8960b
+# ╟─0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
+# ╟─1cbe30b8-eb82-4bef-b774-0d19da33863a
+# ╟─27b097d2-9989-45d3-8725-3e9a4820024e
+# ╠═e9b9d1bf-c257-45c5-93a2-25a99efaf73f
+# ╟─bc31145a-4d0c-41c9-ba8e-10af53d24bf5
+# ╟─f5859816-6659-4ce7-9e28-c20b803849ba
+# ╠═2cddcd6c-f3d0-4308-9b60-b3c70507cab5
+# ╠═fab13fc7-566a-452b-a9a6-0707b57a5869
+# ╟─f4733ba9-59a4-41d6-8690-dc3bcf9f7066
+# ╟─f86f903b-4418-4438-abca-afb8a8b02a9e
+# ╟─0b624019-90c2-4790-b793-4d9d3f3833db
+# ╠═f8bf9242-71a0-4de7-b973-367dd1e42c45
+# ╠═23a93340-5f79-47ec-b135-0f77701306be
+# ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
+# ╠═d44a7190-adb4-460a-949e-005d9afaed73
+# ╠═d0960995-e7d2-46cf-b021-e4a71d1cf668
+# ╠═79dcf062-819b-4291-8f0a-b9355493261e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

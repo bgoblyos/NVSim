@@ -35,6 +35,9 @@ using Base.Threads
 # ╔═╡ 30055ddf-a9c7-4654-bb3d-cba8852f2a07
 using NPZ
 
+# ╔═╡ 868771d0-d49c-4f22-9460-04831cd46291
+using Peaks
+
 # ╔═╡ bfa6acf2-cd9b-4965-a531-62bb2ffd781f
 default( fontfamily = "Computer Modern" )
 
@@ -85,13 +88,8 @@ const Hnv = begin
     MHzToK * (d + e)
 end
 
-# ╔═╡ 8d03dc27-54fc-4fa5-bbb9-44bfaab8f1de
-md"""
-### Note: this notebook has the Rz and Rx rotation matrices switched up. This makes the γ angle relevant to the magnetic field and causes the simulation parameters to be redundant (2 angles are enough with proper matrices). It is left as-is for the time being because it doesn't affect the results in any relevant way.
-"""
-
 # ╔═╡ 80b88ce1-dc79-49c1-a419-9771ce9f2c2d
-function Rz(t)
+function Rx(t)
 	SMatrix{3,3,Float64}(  1,       0,       0,
 	                    0,  cos(t), -sin(t),
 	                         0,  sin(t),  cos(t)  )
@@ -104,21 +102,14 @@ function Ry(t)
 	                        -sin(t),  0,  cos(t)  )
 end
 
-# ╔═╡ 2a61ff02-258e-43f5-a3ed-9c98c588dc34
-function Rx(t)
-	SMatrix{3,3,Float64}( cos(t), -sin(t),  0,
-	                        sin(t),  cos(t),  0,
-	                             0,       0,  1  )
-end
-
 # ╔═╡ 6f0623a7-58a4-49be-82a4-ad76f0337fce
-function rotate(Rx, Ry, Rz, vect)
-	Rz * Ry * Rx * vect
+function rotate(Rx, Ry, vect)
+	Ry * Rx * vect
 end
 
 # ╔═╡ 926dbf08-a581-405b-a4ce-aab51092b9df
-function rotationMatrix(α, β, γ)
-	Rz(γ) * Ry(β) * Rx(α)
+function rotationMatrix(α, β)
+	Ry(β) * Rx(α)
 end
 
 # ╔═╡ d5736ec9-2940-4fe5-a441-cf932b7f1783
@@ -154,8 +145,8 @@ function quantizePeak((peak1, peak2), freqs)
 end
 
 # ╔═╡ 6b495ec7-19bb-4914-8052-fc89cc47ffe4
-function wholeCrystalPeaks(Bs, freqs, α, β, γ)
-	rot = rotationMatrix(α, β, γ)
+function wholeCrystalPeaks(Bs, freqs, α, β)
+	rot = rotationMatrix(α, β)
 	
 	dir1 = rot * normalize(SA_F32[1,-1,-1])
 	dir2 = rot * normalize(SA_F32[-1,1,-1])
@@ -182,11 +173,8 @@ Bs = range(-150,150,200)
 # ╔═╡ a5de69fc-cc36-4381-b3a6-cd8aa7525089
 @bind β PlutoUI.Slider(0:0.1:2π)
 
-# ╔═╡ ba087db2-b383-4270-b67d-93d02b81a68f
-@bind γ PlutoUI.Slider(0:0.1:2π)
-
 # ╔═╡ b8083bc3-fc00-44a9-b495-bc7de5e1cc26
-matrix = wholeCrystalPeaks(Bs, freqs, α, β, γ);
+matrix = wholeCrystalPeaks(Bs, freqs, α, β);
 
 # ╔═╡ 2cbf8a77-414d-49bb-8421-95eb2d70389c
 begin
@@ -200,9 +188,9 @@ end
 # ╔═╡ 051012ef-b405-40b9-b021-36be1e762f2e
 begin
 	local raw = npzread("../../data/highres.npz")
-	measurement = raw["data"] * 0.2e5
+	measurement = raw["data"] / maximum(raw["data"])
 	mFreqs = raw["xaxis"]
-	mBs = raw["yaxis"] * 200 .- 20
+	mBs = raw["yaxis"] * 274.425 .- 28.5052
 	mIs = raw["yaxis"]
 end
 
@@ -244,7 +232,7 @@ end
   ╠═╡ =#
 
 # ╔═╡ 040ee022-f308-48fe-8c5b-099f49fbc473
-mMatrix = wholeCrystalPeaks(mBs, mFreqs, 1.50207, 0.206167, 2.53291);
+mMatrix = wholeCrystalPeaks(mBs, mFreqs, 0.588661, 0.249923);
 #mMatrix = wholeCrystalPeaks(mBs, mFreqs, mα, mβ, mγ);
 
 # ╔═╡ 9c38fb4b-3f2c-4a7a-824d-48ddee6e8b67
@@ -253,17 +241,19 @@ findmax(scores)
   ╠═╡ =#
 
 # ╔═╡ 78290ed7-4afa-4de9-a0b6-870c8f6fb607
-masked = measurement .+ 0.6mMatrix;
+masked = measurement .+ mMatrix;
 
 # ╔═╡ 896603e7-7681-4ade-a0da-e73001d008b3
-heatmap((mFreqs)u"GHz", (mBs)u"Gs", masked)
+heatmap((mFreqs)u"GHz", (mBs)u"Gauss", masked)
 
 # ╔═╡ e84b32d1-516d-4483-85a4-a90121c90616
-heatmap((mFreqs)u"GHz", (mBs)u"Gs", mMatrix)
+heatmap((mFreqs)u"GHz", (mBs)u"Gauss", mMatrix)
 
 # ╔═╡ 6ca31076-ed40-4b27-a6dd-b64ff1f948b2
 begin
-	local plt = heatmap(mFreqs, mIs, measurement)
+	local plt = heatmap(mFreqs, mIs, measurement,
+		colorbar_title="Normalizált jelerősség"
+	)
 	xlabel!(plt, "Frekvencia (GHz)")
 	ylabel!(plt, "Elektromágnes áramerősség (A)")
 	savefig(plt, "~/Downloads/heatmap_meas.pdf")
@@ -271,9 +261,9 @@ begin
 end
 
 # ╔═╡ 60505a0d-6e2e-4d10-8202-9c9eace9bb23
-begin wholeCrystalPeaks(Bs, freqs, α, β, γ)
+begin
 	B = -8.66129 + 270.532*0.809
-	rot = rotationMatrix(1.50207, 0.206167, 2.53291)
+	rot = rotationMatrix(1.50207, 0.206167)
 	
 	dir1 = rot * normalize(SA_F32[1,-1,-1])
 	dir2 = rot * normalize(SA_F32[-1,1,-1])
@@ -293,21 +283,97 @@ unscaledZeeman([1,0,0])
 
 # ╔═╡ 8248e89e-091e-4763-84ae-cef524f36dc6
 begin
-	local plt = bar(freqs[95:105], wholeCrystalPeaks([6], freqs[95:105], α, β, γ)[1,:], label = "")
+	local plt = bar(freqs[95:105], wholeCrystalPeaks([6], freqs[95:105], α, β)[1,:], label = "")
 	xlabel!(plt, "Frekvencia (GHz)")
 	ylabel!(plt, "Rezonancia")
 	savefig(plt, "~/Downloads/quantized.pdf")
 	plt
 end
 
-# ╔═╡ 0c73903a-e0b8-4b97-8058-6ef8fabff297
-length(mFreqs)
+# ╔═╡ b4008c1f-4829-44e1-8980-63d2614d1889
+function continousPeaks(B, α, β)
+	rot = rotationMatrix(α, β)
+	
+	dir1 = rot * normalize(SA_F32[1,-1,-1])
+	dir2 = rot * normalize(SA_F32[-1,1,-1])
+	dir3 = rot * normalize(SA_F32[-1,-1,1])
+	dir4 = rot * normalize(SA_F32[1,1,1])
+
+	pks = peaks.([dir1, dir2, dir3, dir4], B)
+	
+	return sort(vcat((pks...)...))
+end
+
+# ╔═╡ f2cfdde4-5ff5-453b-b9ed-6ddbfa9d989b
+begin
+	local Is = mIs[[90, 95, 100, 105, 110]]
+	local Bs = Bs = [
+		81.6478,
+		103.108,
+		125.308,
+		146.522,
+		167.982
+	] # SingleB Simulation results
+	
+	local plt = heatmap(mFreqs, mIs, measurement)
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Elektromágnes áramerősség (A)")
+	savefig(plt, "~/Downloads/heatmap_meas.pdf")
+	
+	fs = []
+	pIs = []
+	for (B, I) in zip(Bs, Is)
+		fs = vcat(fs, continousPeaks(B, 0.588661, 0.249923))
+		pIs = vcat(pIs, fill(I, 8))
+	end
+	scatter!(plt, fs, pIs, label = "")
+
+end
+
+# ╔═╡ 1e9cf94c-132a-4d4d-b00a-3f8eb84e7fcf
+plot(measurement[85,:])
+
+# ╔═╡ 671622e1-b1c1-44c3-ab2e-89590599932f
+mIs[110]
+
+# ╔═╡ 38a213d8-a3e0-4be7-a35f-9c8a8441f66d
+function findODMRPeaks(freqs, signal)
+	pks, vals = findmaxima(signal)
+	_, proms = peakproms!(pks, signal)
+	decreasingProms = sort(proms, rev = true)
+	peakFreqs = zeros(8)
+	for i in 1:8
+		peakIndex = findfirst(==(decreasingProms[i]), proms)
+		peakFreqs[i] = freqs[pks[peakIndex]]
+	end
+	plotpeaks(freqs, signal, pks)
+	#return sort(peakFreqs)
+end
+
+# ╔═╡ 3781f19d-8d85-41a3-af3e-64f09f15d7c5
+begin
+	local M = hcat(continousPeaks.(mBs, 0.588661, 0.249923)...)
+	plt = heatmap(mFreqs, mBs, sqrt.(measurement), colorbar_title="Normalizált négyzetgyök jelerősség")
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Mágneses tér (Gauss)")
+	
+	for i in 1:8
+		fs = M[i,:]
+		plot!(plt, fs, mBs, color = :green, label = "", lw = 1)
+	end
+	savefig(plt, "~/Downloads/overlapped.pdf")
+	plt
+end
+
+# ╔═╡ 3539cd59-8a52-4999-ac19-1e25d05274f8
+abs(mFreqs[1] - mFreqs[2])*1000
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NPZ = "15e1cf62-19b3-5cfa-8e77-841668bca605"
+Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -315,6 +381,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 NPZ = "~0.4.3"
+Peaks = "~0.5.3"
 Plots = "~1.40.5"
 PlutoUI = "~0.7.59"
 StaticArrays = "~1.9.7"
@@ -327,7 +394,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "c4a4fbd92e2d032f0eed1999b06ed14ded334efb"
+project_hash = "1d707ceab5a550b83f545e5407d1badcf0668daa"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -910,6 +977,12 @@ git-tree-sha1 = "8489905bcdbcfac64d1daa51ca07c0d8f0283821"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.8.1"
 
+[[deps.Peaks]]
+deps = ["RecipesBase", "SIMD"]
+git-tree-sha1 = "75d0ce1c30696d77bc60840222d7fc5d549ebf5f"
+uuid = "18e31ff7-3703-566c-8e60-38913d67486b"
+version = "0.5.3"
+
 [[deps.Pipe]]
 git-tree-sha1 = "6842804e7867b115ca9de748a0cf6b364523c16d"
 uuid = "b98c9c47-44ae-5843-9183-064241ee97a0"
@@ -1051,6 +1124,12 @@ version = "1.3.0"
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
+
+[[deps.SIMD]]
+deps = ["PrecompileTools"]
+git-tree-sha1 = "98ca7c29edd6fc79cd74c61accb7010a4e7aee33"
+uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
+version = "3.6.0"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -1541,10 +1620,8 @@ version = "1.4.1+1"
 # ╠═64f9d5fa-797d-403b-9a3f-43d52e6c37ef
 # ╠═538c74bb-53d7-41fe-a1d3-fb1e66d99fa1
 # ╠═1d59678b-1dcf-4bec-89fa-5f526b66b257
-# ╟─8d03dc27-54fc-4fa5-bbb9-44bfaab8f1de
 # ╠═80b88ce1-dc79-49c1-a419-9771ce9f2c2d
 # ╠═62e24e24-da8a-4fad-a10a-6a543191d7b9
-# ╠═2a61ff02-258e-43f5-a3ed-9c98c588dc34
 # ╠═6f0623a7-58a4-49be-82a4-ad76f0337fce
 # ╠═926dbf08-a581-405b-a4ce-aab51092b9df
 # ╠═d5736ec9-2940-4fe5-a441-cf932b7f1783
@@ -1556,7 +1633,6 @@ version = "1.4.1+1"
 # ╠═762f6189-da74-40a4-bf67-4bde0522a747
 # ╠═86c268e1-6502-464c-b6df-3730cf97ef81
 # ╠═a5de69fc-cc36-4381-b3a6-cd8aa7525089
-# ╠═ba087db2-b383-4270-b67d-93d02b81a68f
 # ╠═b8083bc3-fc00-44a9-b495-bc7de5e1cc26
 # ╠═2cbf8a77-414d-49bb-8421-95eb2d70389c
 # ╠═30055ddf-a9c7-4654-bb3d-cba8852f2a07
@@ -1572,9 +1648,16 @@ version = "1.4.1+1"
 # ╠═896603e7-7681-4ade-a0da-e73001d008b3
 # ╠═e84b32d1-516d-4483-85a4-a90121c90616
 # ╠═6ca31076-ed40-4b27-a6dd-b64ff1f948b2
+# ╠═f2cfdde4-5ff5-453b-b9ed-6ddbfa9d989b
 # ╠═60505a0d-6e2e-4d10-8202-9c9eace9bb23
 # ╠═39e7aedd-49bf-49df-9ae6-0516d24e107c
 # ╠═8248e89e-091e-4763-84ae-cef524f36dc6
-# ╠═0c73903a-e0b8-4b97-8058-6ef8fabff297
+# ╠═b4008c1f-4829-44e1-8980-63d2614d1889
+# ╠═1e9cf94c-132a-4d4d-b00a-3f8eb84e7fcf
+# ╠═671622e1-b1c1-44c3-ab2e-89590599932f
+# ╠═868771d0-d49c-4f22-9460-04831cd46291
+# ╠═38a213d8-a3e0-4be7-a35f-9c8a8441f66d
+# ╠═3781f19d-8d85-41a3-af3e-64f09f15d7c5
+# ╠═3539cd59-8a52-4999-ac19-1e25d05274f8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
