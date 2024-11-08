@@ -180,7 +180,7 @@ matrix = wholeCrystalPeaks(Bs, freqs, α, β);
 begin
 	local plt = heatmap(freqs, Bs, matrix)
 	xlabel!(plt, "Frekvencia (GHz)")
-	ylabel!(plt, "B (Gauss)")
+	ylabel!(plt, "B (gauss)")
 	savefig(plt, "~/Downloads/heatmap_sim.pdf")
 	plt
 end
@@ -355,7 +355,7 @@ begin
 	local M = hcat(continousPeaks.(mBs, 0.588661, 0.249923)...)
 	plt = heatmap(mFreqs, mBs, sqrt.(measurement), colorbar_title="Normalizált négyzetgyök jelerősség")
 	xlabel!(plt, "Frekvencia (GHz)")
-	ylabel!(plt, "Mágneses tér (Gauss)")
+	ylabel!(plt, "Mágneses indukció (gauss)")
 	
 	for i in 1:8
 		fs = M[i,:]

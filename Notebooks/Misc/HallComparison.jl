@@ -236,8 +236,8 @@ begin
 	local plt = scatter(getB.(VHs1), pBs1, label = "1. adatsor")
 	scatter!(plt, getB.(VHs2), pBs2, label = "2. adatsor")
 	plot!([25, 225], [25, 225], label = L"B_{NV} = B_{H}")
-	xlabel!(plt, "Hall-szenzor mágneses tér (Gauss)")
-	ylabel!(plt, "Rekonstruált mágneses tér (Gauss)")
+	xlabel!(plt, "Hall-szenzor mágneses tér (gauss)")
+	ylabel!(plt, "Rekonstruált mágneses tér (gauss)")
 	savefig(plt, "~/Downloads/B_direct_comparison.pdf")
 	plt
 end
