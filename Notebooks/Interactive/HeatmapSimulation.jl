@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.47
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
@@ -353,13 +353,13 @@ end
 # ╔═╡ 3781f19d-8d85-41a3-af3e-64f09f15d7c5
 begin
 	local M = hcat(continousPeaks.(mBs, 0.588661, 0.249923)...)
-	plt = heatmap(mFreqs, mBs, sqrt.(measurement), colorbar_title="Normalizált négyzetgyök jelerősség")
+	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="Normalizált négyzetgyök jelerősség")
 	xlabel!(plt, "Frekvencia (GHz)")
-	ylabel!(plt, "Mágneses indukció (gauss)")
+	ylabel!(plt, "Mágneses indukció (mT)")
 	
 	for i in 1:8
 		fs = M[i,:]
-		plot!(plt, fs, mBs, color = :green, label = "", lw = 1)
+		plot!(plt, fs, 0.1mBs, color = :green, label = "", lw = 1)
 	end
 	savefig(plt, "~/Downloads/overlapped.pdf")
 	plt
@@ -367,6 +367,24 @@ end
 
 # ╔═╡ 3539cd59-8a52-4999-ac19-1e25d05274f8
 abs(mFreqs[1] - mFreqs[2])*1000
+
+# ╔═╡ 52959933-5cf4-41ce-ae96-fbcc31442515
+begin
+	local x = 35.3884
+	local y = 45.2909
+	local z = 86.0317
+	local θ = acos(z/sqrt(x^2 + y^2 + z^2))
+	local ϕ = acos(x/sqrt(x^2 + y^2))
+	local Bs = range(0, 2000, 1000)
+	local M = hcat(continousPeaks.(Bs, θ, ϕ)...)
+	local plt = plot()
+	for i in 1:8
+		fs = M[i,:]
+		plot!(plt, fs, Bs, color = :green, label = "", lw = 1)
+	end
+	plot!(plt, [2,2], [Bs[1], Bs[end]])
+	plt
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1659,5 +1677,6 @@ version = "1.4.1+1"
 # ╠═38a213d8-a3e0-4be7-a35f-9c8a8441f66d
 # ╠═3781f19d-8d85-41a3-af3e-64f09f15d7c5
 # ╠═3539cd59-8a52-4999-ac19-1e25d05274f8
+# ╠═52959933-5cf4-41ce-ae96-fbcc31442515
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
