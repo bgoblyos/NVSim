@@ -75,6 +75,52 @@ B2 = [0.803962, 0.206103, 0.557823 ]
 # ╔═╡ e796914a-719f-4822-887e-6cd79f0ced7a
 allAngles(B1, B2) / π * 180
 
+# ╔═╡ 2d822c86-4393-4cea-be16-396f6b40ebd8
+findmin(abs.(allCombinations(B1) .⋅ Ref([1,1,1])))
+
+# ╔═╡ 35839cad-2460-4b3d-a9c7-121df1d40798
+B1n = allCombinations(B1)[4]
+
+# ╔═╡ 7628bb4d-c742-49f5-8329-da3aacced99b
+B1angles = getAngle.(allCombinations(B1), Ref([1,1,1]))
+
+# ╔═╡ 25b16948-0f5c-46db-966d-4a41fe824e2b
+findmin(abs.(allCombinations(B2) .⋅ Ref([1,1,1])))
+
+# ╔═╡ 378b05d1-a39f-4360-adb7-791364905362
+B2n = allCombinations(B2)[4]
+
+# ╔═╡ 27e53552-63b7-4d03-8d04-743862bbb543
+B2angles = getAngle.(allCombinations(B2), Ref([1,1,1]))
+
+# ╔═╡ e7a19792-93b7-4248-80e7-22e6bce70382
+getAngle(B1n, B2n) / π * 180
+
+# ╔═╡ 5a449924-c47c-4ab1-99e0-ae9e1e48577b
+getAngle(B1n, [1,1,1]) / π * 180
+
+# ╔═╡ fa9bc899-5a18-4a93-92ff-92ed5100d422
+angleDiffs = abs.(B1angles .- B2angles')
+
+# ╔═╡ e53cd9ac-4b72-480a-9021-e43fa8b6fc69
+is = findall(x -> x ≈ 0.001643604008959576, angleDiffs)
+
+# ╔═╡ 4010d5d8-fe63-4f27-9349-ac0616a93640
+is[1][2]
+
+# ╔═╡ 94556ff5-63a7-4d2e-9402-ba4c7e5f6ed7
+for i in is
+	local B1n = allCombinations(B1)[i[1]]
+	local B2n = allCombinations(B2)[i[2]]
+	println(getAngle(B1n, B2n) / π * 180)
+end
+
+# ╔═╡ ffb92d65-0ad3-4091-8423-e0b132f5caa4
+findmin(angleDiffs)
+
+# ╔═╡ eb1966b1-8f49-4ebf-a3ed-b4c60490acbc
+sort(vec(abs.(allCombinations(B2) .⋅ Ref([1,1,1]))))
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -198,9 +244,23 @@ version = "5.11.0+0"
 # ╠═609839c3-ef24-4386-b99c-4fa4fc230817
 # ╠═de322617-50b5-4430-a356-cbf6c815606f
 # ╠═92c1ed7f-9d18-4638-8f68-fd829c4bc76e
-# ╟─d0866a6d-8a29-416a-a92c-822699212588
+# ╠═d0866a6d-8a29-416a-a92c-822699212588
 # ╠═6bb4c4df-df30-4247-8ecd-ffd784e71e66
 # ╠═fe24c7bc-6a66-43c7-bed5-c466d385a17f
 # ╠═e796914a-719f-4822-887e-6cd79f0ced7a
+# ╠═2d822c86-4393-4cea-be16-396f6b40ebd8
+# ╠═35839cad-2460-4b3d-a9c7-121df1d40798
+# ╠═7628bb4d-c742-49f5-8329-da3aacced99b
+# ╠═25b16948-0f5c-46db-966d-4a41fe824e2b
+# ╠═378b05d1-a39f-4360-adb7-791364905362
+# ╠═27e53552-63b7-4d03-8d04-743862bbb543
+# ╠═e7a19792-93b7-4248-80e7-22e6bce70382
+# ╠═5a449924-c47c-4ab1-99e0-ae9e1e48577b
+# ╠═fa9bc899-5a18-4a93-92ff-92ed5100d422
+# ╠═e53cd9ac-4b72-480a-9021-e43fa8b6fc69
+# ╠═4010d5d8-fe63-4f27-9349-ac0616a93640
+# ╠═94556ff5-63a7-4d2e-9402-ba4c7e5f6ed7
+# ╠═ffb92d65-0ad3-4091-8423-e0b132f5caa4
+# ╠═eb1966b1-8f49-4ebf-a3ed-b4c60490acbc
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
