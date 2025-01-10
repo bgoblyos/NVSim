@@ -25,6 +25,9 @@ using LaTeXStrings
 # ╔═╡ f2b6f60c-d86e-4505-b3d9-cfbfdb842b95
 using Unitful
 
+# ╔═╡ 9e82c181-5347-4d4b-a0f1-fd345f3d068f
+using Measurements
+
 # ╔═╡ 935b82ff-45fd-4a7b-a753-047e1df90a6c
 default( fontfamily = "Computer Modern")
 
@@ -120,40 +123,35 @@ end
 md"#### Input processing functions"
 
 # ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
-# ╠═╡ disabled = true
-#=╠═╡
 begin
-	raw = jldopen("../../data/2024-09-16.jld2")
-	const peakVector = SVector{8, Float64}(raw["peaks"][2,:])
+	local raw16 = jldopen("../../data/2024-09-16.jld2")
+	local f16(i) = SVector{8, Float64}(raw16["peaks"][i,:])
+	const peaks16 = f16.(1:4)
+	
+	local raw09 = jldopen("../../data/2024-09-09.jld2")
+	local f09(i) = SVector{8, Float64}(raw09["peaks"][i,:])
+	const peaks09 = f09.(1:4)
+	
 	md"Data import"
 end
-  ╠═╡ =#
 
 # ╔═╡ 6a6f41bc-802d-4bf3-824d-b8efe76a6e39
-# ╠═╡ disabled = true
-#=╠═╡
 # Test missing values
-peakVector = SVector(
+missingTest = SVector(
 	missing,
 	2.7467,
 	2.7835,
-
-2.89758,
-
-2.9304,
-
-3.0293,
-
-3.05638,
-
-3.14502,
+	2.89758,
+	2.9304,
+	3.0293,
+	3.05638,
+	3.14502,
 	#missing
 )
-  ╠═╡ =#
 
 # ╔═╡ e09d1828-7ee5-43e6-93c3-f82c31fdb6ef
-# 117 Gauss calibration
-peakVector = SVector(
+# 117 Gauss calibration on new experimental setup (unknown D and E)
+calib117 = SVector(
 	2.61908,
 	2.66737,
 	2.85883,
@@ -210,14 +208,14 @@ function expectedPeaks(B)
 end
 
 # ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
-function error(B)
+function error(B, measured)
 	expected = expectedPeaks(B)
-    return sum(skipmissing((expected .- peakVector) .^ 2))
+    return sum(skipmissing((expected .- measured) .^ 2))
 end
 
 # ╔═╡ 3f435766-74c3-41d2-baad-a3aea448786b
-function RMSE(B)
-	err = error(B)u"GHz ^ 2"
+function RMSE(B, measured)
+	err = error(B, measured)u"GHz ^ 2"
 	missingVals = count(ismissing, peakVector)
 	return uconvert(u"MHz", sqrt(err/(length(peakVector) - missingVals)))
 end
@@ -237,51 +235,65 @@ end
 	102.368 * −0.557823
 ]
 
-# ╔═╡ fccc6276-0f17-4136-81f6-6193c8f8fb64
-grad(
-	error,
-	[
-		102.368 * 0.803962,
-		102.368 * −0.206103,
-		102.368 * −0.557823
-	]
-)
-
 # ╔═╡ f076c8a7-c9f1-4596-a024-a0cb249c9dce
-begin
-	n = 100_000
+function reconstructField(measuredPeaks, n = 40_000, B0 = SA_F64[50,50,50])
+	curriedError(B) = error(B, measuredPeaks)
 	
-	B0 = SA_F64[50,50,50]
 	Bs = fill(SA_F64[0,0,0], n)
 	Bs[1] = B0
 	
 	errors = zeros(n)
-	errors[1] = error(B0)
+	errors[1] = curriedError(B0)
 	
 	for i in 2:n
-		gradient = grad(error, Bs[i-1])
+		gradient = grad(curriedError, Bs[i-1])
 		Bs[i] = Bs[i-1] - step*gradient
-		errors[i] = error(Bs[i])
+		errors[i] = curriedError(Bs[i])
 	end
+
+	return (
+		result = Bs[end],
+		trajectory = Bs,
+		errors = errors
+	)
 end
 
 # ╔═╡ 8b431668-86d6-4712-9095-05b009baa36a
-plot(errors, yscale = :log10)
+begin
+	local res = reconstructField(peaks16[4], 40_000, SA_F64[50,50,50])
+	println(res.result)
+	plot(res.errors, yscale = :log10)
+end
 
-# ╔═╡ 71bdc202-a92d-4f1d-b231-cd817729ae9a
-errors[end]
+# ╔═╡ c3fb5895-4375-4cda-99f9-afc925412aba
+function coordinateUncertainty(n, u, peaks)
+	function peakWrapper(p1, p2, p3, p4, p5, p6, p7, p8)
+		pV = SA_F64[p1, p2, p3, p4, p5, p6, p7, p8]
+		res = reconstructField(pV).result
+		return sort(res)[n]
+	end
+	
+	local varied = peaks .± u
+	return @uncertain peakWrapper(
+		varied[1], varied[2],
+		varied[3], varied[4],
+		varied[5], varied[6],
+		varied[7], varied[8],
+	)
+	
+end
 
-# ╔═╡ 3446f47a-81ce-4267-946c-4e9415110c97
-Bs[end]
+# ╔═╡ 1c64c922-8c8a-40db-b9e6-379b8fe87bf8
+function uncertainReconstruction(peaks, u)
+	return [
+		coordinateUncertainty(1, u, peaks),
+		coordinateUncertainty(2, u, peaks),
+		coordinateUncertainty(3, u, peaks)
+	]
+end
 
-# ╔═╡ 57a7718b-b076-41fb-bf85-8932c18353a2
-norm(Bs[end])
-
-# ╔═╡ 18ed87d7-d60d-458b-a184-bf5d019fae39
-expectedPeaks(201*normalize(Bs[end]))
-
-# ╔═╡ 80a3e4e2-1355-4722-82c1-9ce10ea518b6
-RMSE(Bs[end])
+# ╔═╡ d93209d4-3c54-4085-9b00-97f27f07405c
+uncertainReconstruction(peaks09[4], 125e-6)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -289,6 +301,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -297,6 +310,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 [compat]
 JLD2 = "~0.5.5"
 LaTeXStrings = "~1.4.0"
+Measurements = "~2.11.0"
 Plots = "~1.40.8"
 ProgressLogging = "~0.1.4"
 StaticArrays = "~1.9.7"
@@ -309,7 +323,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.2"
 manifest_format = "2.0"
-project_hash = "e7cc215d18d369507fe93c56286116aa63cb086a"
+project_hash = "071626769673a30a66bdad1db090052714bcdeab"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -339,6 +353,12 @@ deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jl
 git-tree-sha1 = "009060c9a6168704143100f36ab08f06c2af4642"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.2+1"
+
+[[deps.Calculus]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "f641eb0a4f00c343bbc32346e1217b86f3ce9dad"
+uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
+version = "0.5.1"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -777,6 +797,26 @@ version = "1.1.9"
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
+
+[[deps.Measurements]]
+deps = ["Calculus", "LinearAlgebra", "Printf", "Requires"]
+git-tree-sha1 = "bdcde8ec04ca84aef5b124a17684bf3b302de00e"
+uuid = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+version = "2.11.0"
+
+    [deps.Measurements.extensions]
+    MeasurementsBaseTypeExt = "BaseType"
+    MeasurementsJunoExt = "Juno"
+    MeasurementsRecipesBaseExt = "RecipesBase"
+    MeasurementsSpecialFunctionsExt = "SpecialFunctions"
+    MeasurementsUnitfulExt = "Unitful"
+
+    [deps.Measurements.weakdeps]
+    BaseType = "7fbed51b-1ef5-4d67-9085-a4a9b26f478c"
+    Juno = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
+    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+    SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+    Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [[deps.Measures]]
 git-tree-sha1 = "c13304c81eec1ed3af7fc20e75fb6b26092a1102"
@@ -1473,10 +1513,11 @@ version = "1.4.1+1"
 # ╠═0536ab28-19b0-4c68-ab5b-67f87cc5a2e2
 # ╠═7ef7f31d-557b-42bf-a52e-4554c52f4ac4
 # ╠═f2b6f60c-d86e-4505-b3d9-cfbfdb842b95
-# ╠═935b82ff-45fd-4a7b-a753-047e1df90a6c
-# ╠═ad79aef6-907f-4c6d-8e15-e20ecf669e3b
-# ╠═1f6663cb-0263-4562-9406-308135d11c42
-# ╠═45042f24-c457-4936-abba-f987f0a07dec
+# ╠═9e82c181-5347-4d4b-a0f1-fd345f3d068f
+# ╟─935b82ff-45fd-4a7b-a753-047e1df90a6c
+# ╟─ad79aef6-907f-4c6d-8e15-e20ecf669e3b
+# ╟─1f6663cb-0263-4562-9406-308135d11c42
+# ╟─45042f24-c457-4936-abba-f987f0a07dec
 # ╟─6d1f7bba-54ea-47dd-a23b-e88185e8960b
 # ╟─0c895b1e-feaa-4f3e-b6fe-fd4a4e054be4
 # ╟─1cbe30b8-eb82-4bef-b774-0d19da33863a
@@ -1496,13 +1537,10 @@ version = "1.4.1+1"
 # ╠═3f435766-74c3-41d2-baad-a3aea448786b
 # ╠═abe3240f-1149-481c-8cd4-d8fdf9a87785
 # ╠═f9ea9767-8615-4c94-a530-efc39d4a4bd2
-# ╠═fccc6276-0f17-4136-81f6-6193c8f8fb64
 # ╠═f076c8a7-c9f1-4596-a024-a0cb249c9dce
 # ╠═8b431668-86d6-4712-9095-05b009baa36a
-# ╠═71bdc202-a92d-4f1d-b231-cd817729ae9a
-# ╠═3446f47a-81ce-4267-946c-4e9415110c97
-# ╠═57a7718b-b076-41fb-bf85-8932c18353a2
-# ╠═18ed87d7-d60d-458b-a184-bf5d019fae39
-# ╠═80a3e4e2-1355-4722-82c1-9ce10ea518b6
+# ╠═c3fb5895-4375-4cda-99f9-afc925412aba
+# ╠═1c64c922-8c8a-40db-b9e6-379b8fe87bf8
+# ╠═d93209d4-3c54-4085-9b00-97f27f07405c
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
