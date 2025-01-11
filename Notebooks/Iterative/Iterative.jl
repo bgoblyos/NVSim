@@ -29,7 +29,15 @@ using Unitful
 using Measurements
 
 # ╔═╡ 935b82ff-45fd-4a7b-a753-047e1df90a6c
-default( fontfamily = "Computer Modern")
+begin
+	default( fontfamily = "Computer Modern")
+	L"$\mathrm{Plot \ setup \ for \ \LaTeX}$"
+end
+
+# ╔═╡ 8ab5da39-e21a-4074-a6fb-670bd4bf290c
+md"""
+# Constants
+"""
 
 # ╔═╡ ad79aef6-907f-4c6d-8e15-e20ecf669e3b
 begin
@@ -92,45 +100,20 @@ end
 # ╔═╡ e9b9d1bf-c257-45c5-93a2-25a99efaf73f
 const dirs = normalize.([SA_F64[1,-1,-1], SA_F64[-1,1,-1], SA_F64[-1,-1,1], SA_F64[1,1,1]])
 
-# ╔═╡ bc31145a-4d0c-41c9-ba8e-10af53d24bf5
-md"#### Rotation functions"
-
-# ╔═╡ fab13fc7-566a-452b-a9a6-0707b57a5869
-function R(v1, v2) # rotation matrix that brings v1 to v2
-	u = v1 × v2
-	c = v1 ⋅ v2
-	s = norm(u)
-	u = normalize(u)
-
-	asym = SMatrix{3,3,Float32}(
-             0,    -u[3],  u[2],
-             u[3],  0,    -u[1],
-            -u[2],  u[1],  0,
-	)
-	
-    rotation_matrix = c * I + s * asym + (1 - c) * (u * u')
-end
-
-# ╔═╡ f4733ba9-59a4-41d6-8690-dc3bcf9f7066
-md"#### NV center simulation functions"
-
-# ╔═╡ f86f903b-4418-4438-abca-afb8a8b02a9e
-function unscaledZeeman(dir)
-	gToK * g * sum(spinVector .* dir)
-end
-
 # ╔═╡ 0b624019-90c2-4790-b793-4d9d3f3833db
-md"#### Input processing functions"
+md"# Input data"
 
 # ╔═╡ f8bf9242-71a0-4de7-b973-367dd1e42c45
 begin
 	local raw16 = jldopen("../../data/2024-09-16.jld2")
 	local f16(i) = SVector{8, Float64}(raw16["peaks"][i,:])
 	const peaks16 = f16.(1:4)
+	const us16 = raw16["uncertainties"]
 	
 	local raw09 = jldopen("../../data/2024-09-09.jld2")
 	local f09(i) = SVector{8, Float64}(raw09["peaks"][i,:])
 	const peaks09 = f09.(1:4)
+	const us09 = raw09["uncertainties"]
 	
 	md"Data import"
 end
@@ -161,6 +144,30 @@ calib117 = SVector(
 	3.11633,
 	3.14507
 )
+
+# ╔═╡ f4733ba9-59a4-41d6-8690-dc3bcf9f7066
+md"# NV center simulation functions"
+
+# ╔═╡ fab13fc7-566a-452b-a9a6-0707b57a5869
+function R(v1, v2) # rotation matrix that brings v1 to v2
+	u = v1 × v2
+	c = v1 ⋅ v2
+	s = norm(u)
+	u = normalize(u)
+
+	asym = SMatrix{3,3,Float32}(
+             0,    -u[3],  u[2],
+             u[3],  0,    -u[1],
+            -u[2],  u[1],  0,
+	)
+	
+    rotation_matrix = c * I + s * asym + (1 - c) * (u * u')
+end
+
+# ╔═╡ f86f903b-4418-4438-abca-afb8a8b02a9e
+function unscaledZeeman(dir)
+	gToK * g * sum(spinVector .* dir)
+end
 
 # ╔═╡ 23a93340-5f79-47ec-b135-0f77701306be
 function hamiltonians(Bx, By, Bz)
@@ -207,6 +214,11 @@ function expectedPeaks(B)
 	return sort(peaks)
 end
 
+# ╔═╡ cde3f952-ffe4-4de1-969c-0e6e8925d9e0
+md"""
+# Field reconstruction
+"""
+
 # ╔═╡ c2606b22-dbf1-4d58-8ca1-ea2e9f003615
 function error(B, measured)
 	expected = expectedPeaks(B)
@@ -227,13 +239,6 @@ function grad(func, x0)
 	dz = (func(x0 + hz) - func(x0 - hz))/2h
 	return SA_F64[dx, dy, dz]
 end
-
-# ╔═╡ f9ea9767-8615-4c94-a530-efc39d4a4bd2
-[
-	102.368 * 0.803962,
-	102.368 * −0.206103,
-	102.368 * −0.557823
-]
 
 # ╔═╡ f076c8a7-c9f1-4596-a024-a0cb249c9dce
 function reconstructField(measuredPeaks, n = 40_000, B0 = SA_F64[50,50,50])
@@ -258,12 +263,10 @@ function reconstructField(measuredPeaks, n = 40_000, B0 = SA_F64[50,50,50])
 	)
 end
 
-# ╔═╡ 8b431668-86d6-4712-9095-05b009baa36a
-begin
-	local res = reconstructField(peaks16[4], 40_000, SA_F64[50,50,50])
-	println(res.result)
-	plot(res.errors, yscale = :log10)
-end
+# ╔═╡ f92fc891-5f36-4231-a23e-9d8d9c192b91
+md"""
+# Uncertainty calculation
+"""
 
 # ╔═╡ c3fb5895-4375-4cda-99f9-afc925412aba
 function coordinateUncertainty(n, u, peaks)
@@ -274,26 +277,71 @@ function coordinateUncertainty(n, u, peaks)
 	end
 	
 	local varied = peaks .± u
+	
+	# This is ugly, but the macro doesn't like vectors
 	return @uncertain peakWrapper(
 		varied[1], varied[2],
 		varied[3], varied[4],
 		varied[5], varied[6],
 		varied[7], varied[8],
-	)
+	) 
 	
 end
 
 # ╔═╡ 1c64c922-8c8a-40db-b9e6-379b8fe87bf8
 function uncertainReconstruction(peaks, u)
-	return [
+	uB = [
 		coordinateUncertainty(1, u, peaks),
 		coordinateUncertainty(2, u, peaks),
 		coordinateUncertainty(3, u, peaks)
-	]
+	]u"Gauss"
+
+	return uconvert.(u"μT", uB)
 end
 
+# ╔═╡ 6fb825ec-0ec3-461d-84c6-0de18f21f60b
+md"""
+# Demonstration
+"""
+
+# ╔═╡ 54930624-89e8-4aa7-a9a6-5703042c1ea3
+md"""
+### Convergence
+"""
+
+# ╔═╡ 8b431668-86d6-4712-9095-05b009baa36a
+begin
+	local res = reconstructField(peaks16[4], 40_000, SA_F64[50,50,50])
+	println(res.result)
+	plot(res.errors, yscale = :log10)
+end
+
+# ╔═╡ c7799fbe-1644-4438-bf6e-b6f27e40a336
+md"""
+### Uncertainty
+"""
+
+# ╔═╡ ce67b620-5623-4831-af9f-282356111fb2
+md"""
+##### First measurement series
+"""
+
 # ╔═╡ d93209d4-3c54-4085-9b00-97f27f07405c
-uncertainReconstruction(peaks09[4], 125e-6)
+B09 = uncertainReconstruction.(peaks09, us09)
+
+# ╔═╡ 2b13bd97-eebc-49f8-9f9d-b1b09486f9ea
+norm.(B09)
+
+# ╔═╡ a7bb1209-8461-47a8-8802-44c487970e8d
+md"""
+##### Second measurement series
+"""
+
+# ╔═╡ c03c5985-d4a7-4112-8f87-656a5585a108
+B16 = uncertainReconstruction.(peaks16, us16)
+
+# ╔═╡ dc23f353-c674-4a1e-892b-13e331417417
+norm.(B16)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1515,6 +1563,7 @@ version = "1.4.1+1"
 # ╠═f2b6f60c-d86e-4505-b3d9-cfbfdb842b95
 # ╠═9e82c181-5347-4d4b-a0f1-fd345f3d068f
 # ╟─935b82ff-45fd-4a7b-a753-047e1df90a6c
+# ╟─8ab5da39-e21a-4074-a6fb-670bd4bf290c
 # ╟─ad79aef6-907f-4c6d-8e15-e20ecf669e3b
 # ╟─1f6663cb-0263-4562-9406-308135d11c42
 # ╟─45042f24-c457-4936-abba-f987f0a07dec
@@ -1523,24 +1572,32 @@ version = "1.4.1+1"
 # ╟─1cbe30b8-eb82-4bef-b774-0d19da33863a
 # ╟─27b097d2-9989-45d3-8725-3e9a4820024e
 # ╟─e9b9d1bf-c257-45c5-93a2-25a99efaf73f
-# ╟─bc31145a-4d0c-41c9-ba8e-10af53d24bf5
-# ╠═fab13fc7-566a-452b-a9a6-0707b57a5869
-# ╟─f4733ba9-59a4-41d6-8690-dc3bcf9f7066
-# ╠═f86f903b-4418-4438-abca-afb8a8b02a9e
 # ╟─0b624019-90c2-4790-b793-4d9d3f3833db
 # ╠═f8bf9242-71a0-4de7-b973-367dd1e42c45
-# ╠═6a6f41bc-802d-4bf3-824d-b8efe76a6e39
-# ╠═e09d1828-7ee5-43e6-93c3-f82c31fdb6ef
-# ╠═23a93340-5f79-47ec-b135-0f77701306be
-# ╠═bfa6c104-f6cc-43b7-8cf2-746f3bbddfdd
-# ╠═c2606b22-dbf1-4d58-8ca1-ea2e9f003615
-# ╠═3f435766-74c3-41d2-baad-a3aea448786b
-# ╠═abe3240f-1149-481c-8cd4-d8fdf9a87785
-# ╠═f9ea9767-8615-4c94-a530-efc39d4a4bd2
-# ╠═f076c8a7-c9f1-4596-a024-a0cb249c9dce
-# ╠═8b431668-86d6-4712-9095-05b009baa36a
+# ╟─6a6f41bc-802d-4bf3-824d-b8efe76a6e39
+# ╟─e09d1828-7ee5-43e6-93c3-f82c31fdb6ef
+# ╟─f4733ba9-59a4-41d6-8690-dc3bcf9f7066
+# ╟─fab13fc7-566a-452b-a9a6-0707b57a5869
+# ╟─f86f903b-4418-4438-abca-afb8a8b02a9e
+# ╟─23a93340-5f79-47ec-b135-0f77701306be
+# ╟─bfa6c104-f6cc-43b7-8cf2-746f3bbddfdd
+# ╟─cde3f952-ffe4-4de1-969c-0e6e8925d9e0
+# ╟─c2606b22-dbf1-4d58-8ca1-ea2e9f003615
+# ╟─3f435766-74c3-41d2-baad-a3aea448786b
+# ╟─abe3240f-1149-481c-8cd4-d8fdf9a87785
+# ╟─f076c8a7-c9f1-4596-a024-a0cb249c9dce
+# ╟─f92fc891-5f36-4231-a23e-9d8d9c192b91
 # ╠═c3fb5895-4375-4cda-99f9-afc925412aba
 # ╠═1c64c922-8c8a-40db-b9e6-379b8fe87bf8
+# ╟─6fb825ec-0ec3-461d-84c6-0de18f21f60b
+# ╟─54930624-89e8-4aa7-a9a6-5703042c1ea3
+# ╠═8b431668-86d6-4712-9095-05b009baa36a
+# ╟─c7799fbe-1644-4438-bf6e-b6f27e40a336
+# ╟─ce67b620-5623-4831-af9f-282356111fb2
 # ╠═d93209d4-3c54-4085-9b00-97f27f07405c
+# ╠═2b13bd97-eebc-49f8-9f9d-b1b09486f9ea
+# ╟─a7bb1209-8461-47a8-8802-44c487970e8d
+# ╠═c03c5985-d4a7-4112-8f87-656a5585a108
+# ╠═dc23f353-c674-4a1e-892b-13e331417417
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
