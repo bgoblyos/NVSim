@@ -1,6 +1,7 @@
 module ErrorMinimalization
 
 export reconstructField
+export reconstructUncertainField
 
 include("./NVSimulator.jl")
 using .NVSimulator
@@ -93,7 +94,7 @@ function coordinateUncertainty(peaks, i, u; D = 2800.0, E = 0.0, n = 40_000, B0 
 
 end
 
-function reconstructUncertainty(peaks, i, u; D = 2800.0, E = 0.0, n = 40_000, B0 = SA_F64[50,50,50])
+function reconstructUncertainField(peaks, i, u; D = 2800.0, E = 0.0, n = 40_000, B0 = SA_F64[50,50,50])
 	uB = [
 		coordinateUncertainty(peaks, 1, u; D = D, E = E, n = n, B0 = B0),
 		coordinateUncertainty(peaks, 2, u; D = D, E = E, n = n, B0 = B0),
