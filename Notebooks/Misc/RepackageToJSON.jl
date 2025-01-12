@@ -31,20 +31,41 @@ function unwrapUnitful(val)
 	)
 end
 
-# ╔═╡ cfbdf91b-5817-4096-9f45-f0bf04a60635
-function constructEntry(freqs, uncertainty, D, E)
-	entry = Dict(
-		"freqs" => unwrapUnitful.(freqs),
-		"uncertainty" => unwrapUnitful(uncertainty),
-		"D" => unwrapUnitful(D),
-		"E" => unwrapUnitful(E),
+# ╔═╡ 18fad5b5-6d2f-4439-b217-a82569698d3b
+function unwrapMeasurement(x)
+	u = unit(x)
+	dimless = ustrip(u, x)
+	value = Measurements.value(dimless)
+	unc = Measurements.uncertainty(dimless)
+	return Dict(
+		"value" => value,
+		"uncertainty" => unc,
+		"unit" => string(u)
 	)
 end
+
+# ╔═╡ 596b4a4b-2fac-4915-8f91-d5780c729ecc
+unwrapMeasurement((2.8 ± 0)u"GHz")
+
+# ╔═╡ cfbdf91b-5817-4096-9f45-f0bf04a60635
+function constructEntry(freqs, D, E)
+	entry = Dict(
+		"freqs" => unwrapMeasurement.(freqs),
+		"D" => unwrapMeasurement(D),
+		"E" => unwrapMeasurement(E),
+	)
+end
+
+# ╔═╡ 31b8749a-b802-4bdb-a88c-fa9496893a1f
+D = (2870.2921719690626 ± 0.0018430560259759248)u"MHz"
+
+# ╔═╡ f7331b6e-b5ea-4212-a084-9beb12881fe8
+E = (2.8153124437499955 ± 0.0018430560259759248)u"MHz"
 
 # ╔═╡ a0191a9e-1cb7-4615-aa0c-6a57ab169434
 begin
 	local raw = load("../../data/2024-09-16.jld2")
-	local structure = [constructEntry(raw["peaks"][i,:]u"GHz", raw["uncertainties"][i]u"GHz", 2870.2921719690626u"MHz", 2.8153124437499955u"MHz") for i in 1:4]
+	local structure = [constructEntry(raw["peaks"][i,:]u"GHz" .± raw["uncertainties"][i]u"GHz", D, E) for i in 1:4]
 	open("../../data/2024-09-16.json", "w") do f
     	JSON3.pretty(f, JSON3.write(structure))
 	end
@@ -53,7 +74,7 @@ end
 # ╔═╡ 065910ba-2712-424c-92f4-7b66ad5f2a1e
 begin
 	local raw = load("../../data/2024-09-09.jld2")
-	local structure = [constructEntry(raw["peaks"][i,:]u"GHz", raw["uncertainties"][i]u"GHz", 2870.2921719690626u"MHz", 2.8153124437499955u"MHz") for i in 1:4]
+	local structure = [constructEntry(raw["peaks"][i,:]u"GHz" .± raw["uncertainties"][i]u"GHz", D, E) for i in 1:4]
 	open("../../data/2024-09-09.json", "w") do f
     	JSON3.pretty(f, JSON3.write(structure))
 	end
@@ -395,7 +416,11 @@ version = "17.4.0+2"
 # ╠═ac414bf2-8977-4aa9-ab56-dad0cb82aa06
 # ╠═eb3f68f9-feb8-4891-93e2-7ba8b3f36f7d
 # ╠═a489c755-c9e4-4b99-97db-3b431a32d270
+# ╠═18fad5b5-6d2f-4439-b217-a82569698d3b
+# ╠═596b4a4b-2fac-4915-8f91-d5780c729ecc
 # ╠═cfbdf91b-5817-4096-9f45-f0bf04a60635
+# ╠═31b8749a-b802-4bdb-a88c-fa9496893a1f
+# ╠═f7331b6e-b5ea-4212-a084-9beb12881fe8
 # ╠═a0191a9e-1cb7-4615-aa0c-6a57ab169434
 # ╠═065910ba-2712-424c-92f4-7b66ad5f2a1e
 # ╟─00000000-0000-0000-0000-000000000001
