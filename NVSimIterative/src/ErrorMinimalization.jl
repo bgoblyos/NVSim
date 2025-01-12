@@ -44,8 +44,8 @@ end
 
 # Field reconstruction algorithm
 # measuredPeaks:        Sorted peak locations from measurement
-# D:                    Calibrated D parameter (mean of the two zero field peaks)
-# E:                    Calibrated E parameter (half-distance for the two zero field peaks)
+# D:                    Calibrated D parameter in MHz (mean of the two zero field peaks)
+# E:                    Calibrated E parameter in MHz (half-distance for the two zero field peaks)
 # n:                    Number of iterations
 # B0:                   Starting position for the search (vary this if you're getting nonsensical results)
 function reconstructField(measuredPeaks; D = 2800.0, E = 0.0, n = 40_000, B0 = SA_F64[50,50,50])
@@ -75,30 +75,33 @@ function reconstructField(measuredPeaks; D = 2800.0, E = 0.0, n = 40_000, B0 = S
 end
 
 # Calculate the uncertainty of a single coordinate  
-function coordinateUncertainty(peaks, i, u; D = 2800.0, E = 0.0, n = 40_000, B0 = SA_F64[50,50,50])
-    function peakWrapper(p1, p2, p3, p4, p5, p6, p7, p8)
+function coordinateUncertainty(peaks, i; D = 2800.0u"MHz", E = 0.0u"MHz", n = 40_000, B0 = SA_F64[50,50,50])
+    function peakWrapper(p1, p2, p3, p4, p5, p6, p7, p8, uD, uE)
         pV = SA_F64[p1, p2, p3, p4, p5, p6, p7, p8]
-        res = reconstructField(pV; D = D, E = E, n = n, B0 = B0).result
+        res = reconstructField(pV; D = uD, E = uE, n = n, B0 = B0).result
         return res[i]
     end
 	
-    local varied = peaks .± u
+    peaks = ustrip.(u"GHz", peaks)
+    D = ustrip(u"MHz", D)
+    E = ustrip(u"MHz", E)
 	
     # This is ugly, but the macro doesn't like vectors
     return @uncertain peakWrapper(
-        varied[1], varied[2],
-        varied[3], varied[4],
-        varied[5], varied[6],
-        varied[7], varied[8],
+        peaks[1], peaks[2],
+        peaks[3], peaks[4],
+        peaks[5], peaks[6],
+        peaks[7], peaks[8],
+        D,        E,
     ) 
 
 end
 
-function reconstructUncertainField(peaks, i, u; D = 2800.0, E = 0.0, n = 40_000, B0 = SA_F64[50,50,50])
+function reconstructUncertainField(peaks; D = 2800.0u"MHz", E = 0.0u"MHz", n = 40_000, B0 = SA_F64[50,50,50])
 	uB = [
-		coordinateUncertainty(peaks, 1, u; D = D, E = E, n = n, B0 = B0),
-		coordinateUncertainty(peaks, 2, u; D = D, E = E, n = n, B0 = B0),
-		coordinateUncertainty(peaks, 3, u; D = D, E = E, n = n, B0 = B0),
+		coordinateUncertainty(peaks, 1; D = D, E = E, n = n, B0 = B0),
+		coordinateUncertainty(peaks, 2; D = D, E = E, n = n, B0 = B0),
+		coordinateUncertainty(peaks, 3; D = D, E = E, n = n, B0 = B0),
 	]u"Gauss"
 
 	return uB

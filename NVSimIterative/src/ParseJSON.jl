@@ -36,5 +36,6 @@ function readData(fname)
     end
 
     return parseDataSeries.(object)
+end
 
 end
