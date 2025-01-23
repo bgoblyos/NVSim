@@ -54,31 +54,24 @@ function reconstructField(measuredPeaks; D = 2800.0, E = 0.0, n = 40_000, B0 = S
 
     curriedError(B) = error(B, measuredPeaks, Hnv)
 	
-    Bs = fill(SA_F64[0,0,0], n)
-    Bs[1] = B0
+    B = B0
 	
-    errors = zeros(n)
-    errors[1] = curriedError(B0)
+    err = curriedError(B0)
 	
     for i in 2:n
-        gradient = grad(curriedError, Bs[i-1])
-        Bs[i] = Bs[i-1] - step*gradient
-        errors[i] = curriedError(Bs[i])
+        gradient = grad(curriedError, B)
+        B = B - step*gradient
+        err = curriedError(B)
     end
 
-    return (
-        result = sort(Bs[end]), # The symmetries of the system make any permutation valid
-        trajectory = Bs,
-        errors = errors,
-        RMSE = RMSE(Bs[end], measuredPeaks, Hnv)
-    )
+    return sort(B) # The symmetries of the system make any permutation valid
 end
 
 # Calculate the uncertainty of a single coordinate  
 function coordinateUncertainty(peaks, i; D = 2800.0u"MHz", E = 0.0u"MHz", n = 40_000, B0 = SA_F64[50,50,50])
     function peakWrapper(p1, p2, p3, p4, p5, p6, p7, p8, uD, uE)
         pV = SA_F64[p1, p2, p3, p4, p5, p6, p7, p8]
-        res = reconstructField(pV; D = uD, E = uE, n = n, B0 = B0).result
+        res = reconstructField(pV; D = uD, E = uE, n = n, B0 = B0)
         return res[i]
     end
 	
@@ -97,14 +90,55 @@ function coordinateUncertainty(peaks, i; D = 2800.0u"MHz", E = 0.0u"MHz", n = 40
 
 end
 
-function reconstructUncertainField(peaks; D = 2800.0u"MHz", E = 0.0u"MHz", n = 40_000, B0 = SA_F64[50,50,50])
-	uB = [
+function reconstructUncertainField(data; n = 40_000, B0 = SA_F64[50,50,50])
+    peaks = data.freqs
+    D = data.D
+    E = data.E
+    uB = [
 		coordinateUncertainty(peaks, 1; D = D, E = E, n = n, B0 = B0),
 		coordinateUncertainty(peaks, 2; D = D, E = E, n = n, B0 = B0),
 		coordinateUncertainty(peaks, 3; D = D, E = E, n = n, B0 = B0),
-	]u"Gauss"
+        ]u"Gauss"
 
-	return uB
+    center = reconstructDetailedField(data; n = n, B0 = B0)
+    
+    return (
+        result = uB,
+        RMSE = center.RMSE
+    )
 end
 
+# Field reconstruction algorithm with extra details
+# data:                 named tuple containing freqs array, E and D (all unitful measurements)
+# n:                    Number of iterations
+# B0:                   Starting position for the search (vary this if you're getting nonsensical results)
+function reconstructDetailedField(data; n = 40_000, B0 = SA_F64[50,50,50])
+    peaks = Measurements.value.(ustrip.(u"GHz", data.freqs))
+    D = Measurements.value(ustrip(u"MHz", data.D))
+    E = Measurements.value(ustrip(u"MHz", data.E))
+
+    Hnv = calculateHnv(D, E)
+
+    curriedError(B) = error(B, peaks, Hnv)
+	
+    Bs = fill(SA_F64[0,0,0], n)
+    Bs[1] = B0
+	
+    errors = zeros(n)
+    errors[1] = curriedError(B0)
+	
+    for i in 2:n
+        gradient = grad(curriedError, Bs[i-1])
+        Bs[i] = Bs[i-1] - step*gradient
+        errors[i] = curriedError(Bs[i])
+    end
+
+    return (
+        result = sort(Bs[end]) * u"Gauss", # The symmetries of the system make any permutation valid
+        trajectory = Bs * u"Gauss",
+        errors = errors * u"GHz ^ 2",
+        RMSE = RMSE(Bs[end], peaks, Hnv)
+    )
 end
+
+end # End of module

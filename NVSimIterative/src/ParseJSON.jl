@@ -1,10 +1,13 @@
 module ParseJSON
 
-export readData
+export readDataString
+export readDataFile
+export serializeUncertainResults
 
 using JSON3
 using Unitful
 using Measurements
+
 
 # Check if the loaded object is a list
 function isMultiEntry(JSONobj)
@@ -12,14 +15,30 @@ function isMultiEntry(JSONobj)
 end
 
 # Parse unitful quantities from dictionary
-function parseMeasurement(dict)
-    return (dict["value"] ± dict["uncertainty"]) * uparse(dict["unit"])
+function parseMeasurement(dict; defunit = u"GHz")
+    
+    val = dict["value"]
+    if isnothing(val)
+        val = missing
+    end
+
+    err = 0
+    if haskey(dict, "uncertainty")
+        err = dict["uncertainty"]
+    end
+
+    unit = defunit
+    if haskey(dict, "unit")
+        unit = uparse(dict["unit"])
+    end
+        
+    return (val ± err) * unit
 end
 
-function parseDataSeries(dict)
+function parseExperiment(dict)
     freqs = parseMeasurement.(dict["freqs"])
-    D = parseMeasurement(dict["D"])
-    E = parseMeasurement(dict["E"])
+    D = parseMeasurement(dict["D"]; defunit = u"MHz")
+    E = parseMeasurement(dict["E"]; defunit = u"MHz")
     return (
         freqs = freqs,
         D = D,
@@ -27,15 +46,42 @@ function parseDataSeries(dict)
     )
 end
 
-function readData(fname)
-    JSONstr = read(fname, String)
+function readDataString(JSONstr)
     object = JSON3.read(JSONstr)
 
     if !isMultiEntry(object)
         object = [object]
     end
 
-    return parseDataSeries.(object)
+    return parseExperiment.(object)
 end
 
+function readDataFile(fname)
+    JSONstr = read(fname, String)
+    return readDataString(JSONstr)
 end
+
+function serializeMeasurement(x)
+	u = unit(x)
+	dimless = ustrip(u, x)
+	value = Measurements.value(dimless)
+	unc = Measurements.uncertainty(dimless)
+	return Dict(
+		"value" => value,
+		"uncertainty" => unc,
+		"unit" => string(u)
+	)
+end
+
+function serializeUncertainResult(res)
+    dict = Dict(
+        "result" => serializeMeasurement.(res.result),
+        "RMSE" => serializeMeasurement(res.RMSE)
+    )
+end
+
+function serializeUncertainResults(results)
+    JSON3.write(serializeUncertainResult.(results))
+end
+
+end # End of module
