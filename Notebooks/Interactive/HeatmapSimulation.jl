@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.19.47
 
 using Markdown
 using InteractiveUtils
@@ -144,6 +144,9 @@ function quantizePeak((peak1, peak2), freqs)
 	return res
 end
 
+# ╔═╡ a9176e07-4f0f-4f1b-9881-e45fe7094a9c
+dirs = normalize.([SA_F64[1,-1,-1], SA_F64[-1,1,-1], SA_F64[-1,-1,1], SA_F64[1,1,1]])
+
 # ╔═╡ 6b495ec7-19bb-4914-8052-fc89cc47ffe4
 function wholeCrystalPeaks(Bs, freqs, α, β)
 	rot = rotationMatrix(α, β)
@@ -190,8 +193,9 @@ begin
 	local raw = npzread("../../data/highres.npz")
 	measurement = raw["data"] / maximum(raw["data"])
 	mFreqs = raw["xaxis"]
-	mBs = raw["yaxis"] * 274.425 .- 28.5052
+	mBs = -(raw["yaxis"] * -266.54927926267925 .+ 28.056485905127424)
 	mIs = raw["yaxis"]
+	directionVector = [0.2034699707737232, 0.5654711442896325, 0.7986309528298148]
 end
 
 # ╔═╡ 2244cb3f-34d0-4c7c-946c-d02dfef2e51b
@@ -330,6 +334,65 @@ begin
 
 end
 
+# ╔═╡ deb84a71-d41c-4d23-a6f5-0efac9c5b7f2
+function R(v1, v2) # rotation matrix that brings v1 to v2
+	u = v1 × v2
+	c = v1 ⋅ v2
+	s = norm(u)
+	u = normalize(u)
+
+	asym = SMatrix{3,3,Float32}(
+             0,    -u[3],  u[2],
+             u[3],  0,    -u[1],
+            -u[2],  u[1],  0,
+	)
+	
+    rotation_matrix = c * I + s * asym + (1 - c) * (u * u')
+end
+
+# ╔═╡ c4222ebe-0c9d-436e-aafa-ea5fd5d8112f
+function hamiltonians(Bx, By, Bz)
+	BVec = SA_F64[Bx, Bz, By]
+	B = norm(BVec)
+	rot = R(BVec/B, SA_F64[0, 0, 1])
+	return SVector(
+		unscaledZeeman(rot * dirs[1]),
+		unscaledZeeman(rot * dirs[2]),
+		unscaledZeeman(rot * dirs[3]),
+		unscaledZeeman(rot * dirs[4]),
+	) * B .+ Ref(Hnv)
+end
+
+# ╔═╡ c271430a-6148-47c5-87eb-756a1fa16416
+function continousPeaksAlt(B)
+	Hs = hamiltonians(B...)
+		
+	# Direction 1
+	@inbounds vals1 = eigvals(Hs[1])/GHzToK
+
+	# Direction 2
+	@inbounds vals2 = eigvals(Hs[2])/GHzToK
+
+	# Direction 3
+	@inbounds vals3 = eigvals(Hs[3])/GHzToK
+
+	# Direction 4
+	@inbounds vals4 = eigvals(Hs[4])/GHzToK
+
+	@inbounds peaks = SVector(
+		abs(vals1[1] - vals1[3]),
+		abs(vals1[1] - vals1[2]),
+		abs(vals2[1] - vals2[3]),
+		abs(vals2[1] - vals2[2]),
+		abs(vals3[1] - vals3[3]),
+		abs(vals3[1] - vals3[2]),
+		abs(vals4[1] - vals4[3]),
+		abs(vals4[1] - vals4[2])
+	)
+
+	return sort(peaks)
+end
+
 # ╔═╡ 1e9cf94c-132a-4d4d-b00a-3f8eb84e7fcf
 plot(measurement[85,:])
 
@@ -350,20 +413,8 @@ function findODMRPeaks(freqs, signal)
 	#return sort(peakFreqs)
 end
 
-# ╔═╡ 3781f19d-8d85-41a3-af3e-64f09f15d7c5
-begin
-	local M = hcat(continousPeaks.(mBs, 0.588661, 0.249923)...)
-	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="Normalizált négyzetgyök jelerősség")
-	xlabel!(plt, "Frekvencia (GHz)")
-	ylabel!(plt, "Mágneses indukció (mT)")
-	
-	for i in 1:8
-		fs = M[i,:]
-		plot!(plt, fs, 0.1mBs, color = :green, label = "", lw = 1)
-	end
-	savefig(plt, "~/Downloads/overlapped.pdf")
-	plt
-end
+# ╔═╡ b45d5a2c-32ca-4783-886c-1cf334146c30
+continousPeaksAlt(mBs[1] * directionVector)
 
 # ╔═╡ 3539cd59-8a52-4999-ac19-1e25d05274f8
 abs(mFreqs[1] - mFreqs[2])*1000
@@ -383,6 +434,40 @@ begin
 		plot!(plt, fs, Bs, color = :green, label = "", lw = 1)
 	end
 	plot!(plt, [2,2], [Bs[1], Bs[end]])
+	plt
+end
+
+# ╔═╡ 3781f19d-8d85-41a3-af3e-64f09f15d7c5
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	local M = hcat(continousPeaks.(mBs, 0.588661, 0.249923)...)
+	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="Normalizált négyzetgyök jelerősség")
+	xlabel!(plt, "Frekvencia (GHz)")
+	ylabel!(plt, "Mágneses indukció (mT)")
+	
+	for i in 1:8
+		fs = M[i,:]
+		plot!(plt, fs, 0.1mBs, color = :green, label = "", lw = 1)
+	end
+	savefig(plt, "~/Downloads/overlapped.pdf")
+	plt
+end
+  ╠═╡ =#
+
+# ╔═╡ 1f5f888e-1be5-47b8-9df7-122b7b4c662f
+begin
+	local M = hcat(continousPeaksAlt.(mBs .* Ref(directionVector))...)
+	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="ODMR signal strength (arb. unit)")
+	xlabel!(plt, "Microwave frequency (GHz)")
+	ylabel!(plt, "Magnetic flux density (mT)")
+	
+	for i in 1:8
+		fs = M[i,:]
+		plot!(plt, fs, 0.1mBs, color = :green, label = "", lw = 1)
+	end
+	savefig(plt, "~/Downloads/overlapped.pdf")
+	savefig(plt, "~/Downloads/overlapped.png")
 	plt
 end
 
@@ -410,7 +495,7 @@ Unitful = "~1.21.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.3"
 manifest_format = "2.0"
 project_hash = "1d707ceab5a550b83f545e5407d1badcf0668daa"
 
@@ -1646,6 +1731,7 @@ version = "1.4.1+1"
 # ╠═b5a59d56-1312-41f0-a82f-3470d24be356
 # ╠═b75d068e-6cac-4afc-8bd2-cb38b8eaa9bf
 # ╠═416929ff-5ed2-4ba6-a912-8ace871d4778
+# ╠═a9176e07-4f0f-4f1b-9881-e45fe7094a9c
 # ╠═6b495ec7-19bb-4914-8052-fc89cc47ffe4
 # ╠═300bdc68-0269-4f84-b975-c21e758f5d28
 # ╠═762f6189-da74-40a4-bf67-4bde0522a747
@@ -1671,11 +1757,16 @@ version = "1.4.1+1"
 # ╠═39e7aedd-49bf-49df-9ae6-0516d24e107c
 # ╠═8248e89e-091e-4763-84ae-cef524f36dc6
 # ╠═b4008c1f-4829-44e1-8980-63d2614d1889
+# ╠═deb84a71-d41c-4d23-a6f5-0efac9c5b7f2
+# ╠═c4222ebe-0c9d-436e-aafa-ea5fd5d8112f
+# ╠═c271430a-6148-47c5-87eb-756a1fa16416
 # ╠═1e9cf94c-132a-4d4d-b00a-3f8eb84e7fcf
 # ╠═671622e1-b1c1-44c3-ab2e-89590599932f
 # ╠═868771d0-d49c-4f22-9460-04831cd46291
 # ╠═38a213d8-a3e0-4be7-a35f-9c8a8441f66d
 # ╠═3781f19d-8d85-41a3-af3e-64f09f15d7c5
+# ╠═1f5f888e-1be5-47b8-9df7-122b7b4c662f
+# ╠═b45d5a2c-32ca-4783-886c-1cf334146c30
 # ╠═3539cd59-8a52-4999-ac19-1e25d05274f8
 # ╠═52959933-5cf4-41ce-ae96-fbcc31442515
 # ╟─00000000-0000-0000-0000-000000000001

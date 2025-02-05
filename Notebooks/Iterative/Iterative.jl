@@ -28,6 +28,9 @@ using Unitful
 # ╔═╡ 9e82c181-5347-4d4b-a0f1-fd345f3d068f
 using Measurements
 
+# ╔═╡ 4ca50282-3d23-4ffa-9d4a-1861c52c1ca8
+using JSON3
+
 # ╔═╡ 935b82ff-45fd-4a7b-a753-047e1df90a6c
 begin
 	default( fontfamily = "Computer Modern")
@@ -343,10 +346,17 @@ B16 = uncertainReconstruction.(peaks16, us16)
 # ╔═╡ dc23f353-c674-4a1e-892b-13e331417417
 norm.(B16)
 
+# ╔═╡ 04d01b1c-f6b4-45bb-b4e7-8e98b84e4e55
+test = load("../../data/highres_heatmap/10.jld2")
+
+# ╔═╡ 272e1c09-135e-4f86-81ff-288315fd090d
+
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
@@ -357,6 +367,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 JLD2 = "~0.5.5"
+JSON3 = "~1.14.1"
 LaTeXStrings = "~1.4.0"
 Measurements = "~2.11.0"
 Plots = "~1.40.8"
@@ -369,9 +380,9 @@ Unitful = "~1.21.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.2"
+julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "071626769673a30a66bdad1db090052714bcdeab"
+project_hash = "430c55b8f229ce3ae479586370e23710b42dfc19"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -664,6 +675,18 @@ deps = ["Dates", "Mmap", "Parsers", "Unicode"]
 git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.4"
+
+[[deps.JSON3]]
+deps = ["Dates", "Mmap", "Parsers", "PrecompileTools", "StructTypes", "UUIDs"]
+git-tree-sha1 = "1d322381ef7b087548321d3f878cb4c9bd8f8f9b"
+uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+version = "1.14.1"
+
+    [deps.JSON3.extensions]
+    JSON3ArrowExt = ["ArrowTypes"]
+
+    [deps.JSON3.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1176,6 +1199,12 @@ git-tree-sha1 = "5cf7606d6cef84b543b483848d4ae08ad9832b21"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.34.3"
 
+[[deps.StructTypes]]
+deps = ["Dates", "UUIDs"]
+git-tree-sha1 = "159331b30e94d7b11379037feeb9b690950cace8"
+uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
+version = "1.11.0"
+
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 version = "1.11.0"
@@ -1562,6 +1591,7 @@ version = "1.4.1+1"
 # ╠═7ef7f31d-557b-42bf-a52e-4554c52f4ac4
 # ╠═f2b6f60c-d86e-4505-b3d9-cfbfdb842b95
 # ╠═9e82c181-5347-4d4b-a0f1-fd345f3d068f
+# ╠═4ca50282-3d23-4ffa-9d4a-1861c52c1ca8
 # ╟─935b82ff-45fd-4a7b-a753-047e1df90a6c
 # ╟─8ab5da39-e21a-4074-a6fb-670bd4bf290c
 # ╠═ad79aef6-907f-4c6d-8e15-e20ecf669e3b
@@ -1599,5 +1629,7 @@ version = "1.4.1+1"
 # ╟─a7bb1209-8461-47a8-8802-44c487970e8d
 # ╠═c03c5985-d4a7-4112-8f87-656a5585a108
 # ╠═dc23f353-c674-4a1e-892b-13e331417417
+# ╠═04d01b1c-f6b4-45bb-b4e7-8e98b84e4e55
+# ╠═272e1c09-135e-4f86-81ff-288315fd090d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -80,6 +80,12 @@ begin
 	end
 end
 
+# ╔═╡ 494f4491-10e6-45d5-861c-cb5f8cb16fa8
+a = Dict("a" => 1, "b" => 2)
+
+# ╔═╡ 0ec00f40-ac80-4bd9-80a1-bafb44612891
+haskey(a, "c")
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -103,7 +109,7 @@ Unitful = "~1.22.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.2"
+julia_version = "1.11.3"
 manifest_format = "2.0"
 project_hash = "d973b2410084766276972c6d70cfdb2496a82cdc"
 
@@ -423,5 +429,7 @@ version = "17.4.0+2"
 # ╠═f7331b6e-b5ea-4212-a084-9beb12881fe8
 # ╠═a0191a9e-1cb7-4615-aa0c-6a57ab169434
 # ╠═065910ba-2712-424c-92f4-7b66ad5f2a1e
+# ╠═494f4491-10e6-45d5-861c-cb5f8cb16fa8
+# ╠═0ec00f40-ac80-4bd9-80a1-bafb44612891
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

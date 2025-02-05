@@ -31,6 +31,12 @@ using JLD2
 # ╔═╡ 6b710d1c-1544-408e-97ce-b877170ec7d9
 using CurveFit
 
+# ╔═╡ 2a6a1fa0-42f3-4a7e-94f4-d41e5374d04c
+using JSON3
+
+# ╔═╡ 03ccbccd-4096-4ef2-981a-cba6f464fc19
+using LinearAlgebra
+
 # ╔═╡ 11c07a21-3ca1-445c-9ab6-131d29dfb29e
 default( fontfamily = "Computer Modern" )
 
@@ -74,8 +80,13 @@ end
 # ╔═╡ 04562e61-1fe3-4b26-9273-17c0da672e3c
 function savePeaks(i)
 	res = getODMRPeaks(freqs, data[i,:])
-	jldsave("../../data/highres_heatmap/$i.jld2"; peaks = res.peaks)
-	res.plt
+	#jldsave("../../data/highres_heatmap/$i.jld2"; peaks = res.peaks)
+	#res.plt
+	return Dict(
+		"freqs" => [Dict("value" => pk) for pk in res.peaks],
+		"D" => Dict("value" => 2870.2921719690626),
+		"E" => Dict("value" => 2.8153124437499955)
+	)
 end
 
 # ╔═╡ 2b84ec0c-496a-497a-8dc6-d5a01164b210
@@ -92,6 +103,16 @@ savePeaks(105)
 
 # ╔═╡ c4aa1872-afe6-485e-b93f-d5c847e11e55
 savePeaks(110)
+
+# ╔═╡ 49164881-7e57-44f9-a1be-2b6457f7dc48
+md"""
+## Negative current
+"""
+
+# ╔═╡ 1c2c2b9c-2d72-42e1-abac-aaac2eb4cb08
+open("../../data/highres_heatmap/negatives.json", "w") do f
+	JSON3.pretty(f, JSON3.write(savePeaks.(10:5:50)))
+end
 
 # ╔═╡ 80ae78aa-5d5c-4b43-af1e-3e99d0cd2e77
 Is = mIs[[90, 95, 100, 105, 110]]
@@ -111,12 +132,38 @@ scatter(Is, Bs)
 # ╔═╡ 7051705b-368f-4a7d-bca6-f4df6d5a81d1
 linear_fit(Is, Bs)
 
+# ╔═╡ 08c92e26-61c7-4219-badb-4cc9c2afd117
+begin
+	local json_string = read("/var/home/bence/Code/Julia/NVSim/data/highres_heatmap/bestfit-10-5-50.json", String)
+	local data = JSON3.read(json_string)
+	local Bs = norm.(data)
+	deleteat!(Bs, 4)
+	local Is = mIs[10:5:50]
+	deleteat!(Is, 4)
+	local fit = linear_fit(Is, Bs)
+	println(fit)
+	local plt = scatter(Is, Bs, label = "Measured data")
+	local xs = range(Is[1], Is[end], 10)
+	local ys = (xs * fit[2]) .+ fit[1]
+	
+	plot!(plt, xs, ys)
+
+	local normalized = normalize.(data)
+	println("Mean vector: $(sum(normalized) / length(normalized))")
+	sum(normalized)
+end
+
+# ╔═╡ 46d24c5a-61c8-4a59-ad4b-b21c4bbcc111
+
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CurveFit = "5a033b19-8c74-5913-a970-47c3779ef25c"
 ImageFiltering = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 NPZ = "15e1cf62-19b3-5cfa-8e77-841668bca605"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
@@ -128,6 +175,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 CurveFit = "~0.6.0"
 ImageFiltering = "~0.7.8"
 JLD2 = "~0.4.50"
+JSON3 = "~1.14.1"
 Measurements = "~2.11.0"
 NPZ = "~0.4.3"
 OffsetArrays = "~1.14.1"
@@ -140,9 +188,9 @@ Unitful = "~1.21.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "60ad52c66370d6beb428a6905182e2d4cab88650"
+project_hash = "59d8ce9721c135e23521125574608316b46244b3"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -583,6 +631,18 @@ deps = ["Dates", "Mmap", "Parsers", "Unicode"]
 git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.4"
+
+[[deps.JSON3]]
+deps = ["Dates", "Mmap", "Parsers", "PrecompileTools", "StructTypes", "UUIDs"]
+git-tree-sha1 = "1d322381ef7b087548321d3f878cb4c9bd8f8f9b"
+uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+version = "1.14.1"
+
+    [deps.JSON3.extensions]
+    JSON3ArrowExt = ["ArrowTypes"]
+
+    [deps.JSON3.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1185,6 +1245,12 @@ git-tree-sha1 = "5cf7606d6cef84b543b483848d4ae08ad9832b21"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.34.3"
 
+[[deps.StructTypes]]
+deps = ["Dates", "UUIDs"]
+git-tree-sha1 = "159331b30e94d7b11379037feeb9b690950cace8"
+uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
+version = "1.11.0"
+
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 version = "1.11.0"
@@ -1590,6 +1656,8 @@ version = "1.4.1+1"
 # ╠═a3a3ed6d-6137-449f-a2e3-adf341a1cf0e
 # ╠═1ea3ec7e-f0b0-498f-a985-b269f38649d4
 # ╠═6b710d1c-1544-408e-97ce-b877170ec7d9
+# ╠═2a6a1fa0-42f3-4a7e-94f4-d41e5374d04c
+# ╠═03ccbccd-4096-4ef2-981a-cba6f464fc19
 # ╠═11c07a21-3ca1-445c-9ab6-131d29dfb29e
 # ╠═5d9f30c9-9d50-4710-bc61-6dbaa931169b
 # ╠═425884d5-6399-464b-baba-cdf216550364
@@ -1600,9 +1668,13 @@ version = "1.4.1+1"
 # ╠═7a956a36-974e-4f1a-8263-fb755b4d9ce9
 # ╠═ae9291a5-2b12-4648-b23a-a23db71ed758
 # ╠═c4aa1872-afe6-485e-b93f-d5c847e11e55
+# ╠═49164881-7e57-44f9-a1be-2b6457f7dc48
+# ╠═1c2c2b9c-2d72-42e1-abac-aaac2eb4cb08
 # ╠═80ae78aa-5d5c-4b43-af1e-3e99d0cd2e77
 # ╠═250701f2-993e-4aec-8aac-30d58277f7ee
 # ╠═5fbd7147-74a2-4345-9686-73f351310754
 # ╠═7051705b-368f-4a7d-bca6-f4df6d5a81d1
+# ╠═08c92e26-61c7-4219-badb-4cc9c2afd117
+# ╠═46d24c5a-61c8-4a59-ad4b-b21c4bbcc111
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
