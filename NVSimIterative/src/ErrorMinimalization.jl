@@ -1,7 +1,8 @@
 module ErrorMinimalization
 
-export reconstructField
+export reconstructSimpleField
 export reconstructUncertainField
+
 
 include("./NVSimulator.jl")
 using .NVSimulator
@@ -139,6 +140,18 @@ function reconstructDetailedField(data; n = 40_000, B0 = SA_F64[50,50,50])
         errors = errors * u"GHz ^ 2",
         RMSE = RMSE(Bs[end], peaks, Hnv)
     )
+end
+
+# Field reconstruction algorithm with no details
+# data:                 named tuple containing freqs array, E and D (all unitful measurements)
+# n:                    Number of iterations
+# B0:                   Starting position for the search (vary this if you're getting nonsensical results)
+function reconstructSimpleField(data; n = 40_000, B0 = SA_F64[50,50,50])
+    peaks = Measurements.value.(ustrip.(u"GHz", data.freqs))
+    D = Measurements.value(ustrip(u"MHz", data.D))
+    E = Measurements.value(ustrip(u"MHz", data.E))
+
+    return reconstructField(peaks; D = D, E = E, n = n, B0 = B0)
 end
 
 end # End of module

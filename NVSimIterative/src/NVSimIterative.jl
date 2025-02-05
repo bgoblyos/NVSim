@@ -61,10 +61,15 @@ function simple(req::HTTP.Request)
     if HTTP.method(req) == "OPTIONS"
         return HTTP.Response(200, headers)
     end
-    body = readDataString(String(req.body))
-    println(body)
-    
-    HTTP.Response(200, headers, "To be implemented")
+
+    data = readDataString(String(req.body))
+    println("Message body: $data")
+
+    result = reconstructSimpleField.(data)
+    println("Result: $result")
+    response = serializeResults(result)
+    println("Response: $response")
+    HTTP.Response(200, headers, response)
 end
 
 HTTP.register!(ROUTER, "POST", "/api/simple", simple)

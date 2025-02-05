@@ -3,6 +3,7 @@ module ParseJSON
 export readDataString
 export readDataFile
 export serializeUncertainResults
+export serializeResults
 
 using JSON3
 using Unitful
@@ -82,6 +83,10 @@ end
 
 function serializeUncertainResults(results)
     JSON3.write(serializeUncertainResult.(results))
+end
+
+function serializeResults(res)
+    JSON3.write(res)
 end
 
 end # End of module
