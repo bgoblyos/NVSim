@@ -233,11 +233,11 @@ simError(vcat(VHs1, VHs2), vcat(pBs1, pBs2))
 
 # ╔═╡ 14261bc0-a03a-4b08-94b4-a69f90c2ef18
 begin
-	local plt = scatter(getB.(VHs1), pBs1, label = "1. adatsor")
-	scatter!(plt, getB.(VHs2), pBs2, label = "2. adatsor")
-	plot!([25, 225], [25, 225], label = L"B_{NV} = B_{H}")
-	xlabel!(plt, "Hall-szenzor mágneses tér (gauss)")
-	ylabel!(plt, "Rekonstruált mágneses tér (gauss)")
+	local plt = scatter(getB.(VHs1) ./ 10, pBs1 ./10, label = "1. adatsor")
+	scatter!(plt, getB.(VHs2) ./ 10, pBs2 ./ 10, label = "2. adatsor")
+	plot!([2.5, 22.5], [2.5, 22.5], label = L"B_{NV} = B_{H}")
+	xlabel!(plt, "Hall-szenzor mágneses tér (mT)")
+	ylabel!(plt, "Rekonstruált mágneses tér (mT)")
 	savefig(plt, "~/Downloads/B_direct_comparison.pdf")
 	plt
 end
@@ -261,7 +261,7 @@ Plots = "~1.40.5"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.4"
 manifest_format = "2.0"
 project_hash = "852f60bb68b5182cf31832975b63839e3dd5539f"
 
@@ -815,7 +815,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]

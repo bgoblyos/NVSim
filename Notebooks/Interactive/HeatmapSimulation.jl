@@ -46,8 +46,8 @@ begin
 	const MHzToK = 4.7991939324e-5
 	const GHzToK = 4.7991939324e-2
 	const gToK = 6.71714e-5
-	const D = 2875
-	const E = 0
+	const D = 2870.2921719690626
+	const E = 2.8153124437499955
 	const g = 2.0026
 end;
 
@@ -458,16 +458,19 @@ end
 # ╔═╡ 1f5f888e-1be5-47b8-9df7-122b7b4c662f
 begin
 	local M = hcat(continousPeaksAlt.(mBs .* Ref(directionVector))...)
-	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="ODMR signal strength (arb. unit)")
-	xlabel!(plt, "Microwave frequency (GHz)")
-	ylabel!(plt, "Magnetic flux density (mT)")
+	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="Normlizált ODMR jelesrősség")
+	#xlabel!(plt, "Microwave frequency (GHz)")
+	#ylabel!(plt, "Magnetic flux density (mT)")
+	
+	xlabel!(plt, "Mikrohullám frekvencia (GHz)")
+	ylabel!(plt, "Mágneses indukció (mT)")
 	
 	for i in 1:8
 		fs = M[i,:]
 		plot!(plt, fs, 0.1mBs, color = :green, label = "", lw = 1)
 	end
-	savefig(plt, "~/Downloads/overlapped.pdf")
-	savefig(plt, "~/Downloads/overlapped.png")
+	savefig(plt, "~/Downloads/overlapped_hu.pdf")
+	#savefig(plt, "~/Downloads/overlapped.png")
 	plt
 end
 
@@ -495,7 +498,7 @@ Unitful = "~1.21.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.3"
+julia_version = "1.11.4"
 manifest_format = "2.0"
 project_hash = "1d707ceab5a550b83f545e5407d1badcf0668daa"
 
@@ -1038,7 +1041,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]

@@ -31,6 +31,9 @@ using Measurements
 # ╔═╡ 4ca50282-3d23-4ffa-9d4a-1861c52c1ca8
 using JSON3
 
+# ╔═╡ b670e2ee-8f50-4136-8db5-aee9b16d164f
+using Measures
+
 # ╔═╡ 935b82ff-45fd-4a7b-a753-047e1df90a6c
 begin
 	default( fontfamily = "Computer Modern")
@@ -350,7 +353,34 @@ norm.(B16)
 test = load("../../data/highres_heatmap/10.jld2")
 
 # ╔═╡ 272e1c09-135e-4f86-81ff-288315fd090d
+begin
+	local res = reconstructField(peaks09[4], 40_000, SA_F64[50,50,50])
+	local trajectory = res.trajectory[1:10:end] ./ 10
+	local xs = getindex.(trajectory, 1)
+	local ys = getindex.(trajectory, 2)
+	local zs = getindex.(trajectory, 3)
+	local plt = plot(
+		xs,
+		ys,
+		zs,
+		label = "",
+		xlabel = "$(L"x") (mT)",
+		ylabel = "$(L"y") (mT)",
+		zlabel = "$(L"z") (mT)",
+		size = (600,600),
+		margin = -20mm
+	)
+	scatter!(
+		plt,
+		[xs[1], xs[end]],
+		[ys[1], ys[end]],
+		[zs[1], zs[end]],
+		label = "",
+	)
 
+	savefig(plt, "~/Downloads/trajectory.pdf")
+	plt
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -360,6 +390,7 @@ JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+Measures = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -370,6 +401,7 @@ JLD2 = "~0.5.5"
 JSON3 = "~1.14.1"
 LaTeXStrings = "~1.4.0"
 Measurements = "~2.11.0"
+Measures = "~0.3.2"
 Plots = "~1.40.8"
 ProgressLogging = "~0.1.4"
 StaticArrays = "~1.9.7"
@@ -380,9 +412,9 @@ Unitful = "~1.21.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.3"
+julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "430c55b8f229ce3ae479586370e23710b42dfc19"
+project_hash = "7c46a2a1e484b56e193972963f78d97d788daae4"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -932,7 +964,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -1592,6 +1624,7 @@ version = "1.4.1+1"
 # ╠═f2b6f60c-d86e-4505-b3d9-cfbfdb842b95
 # ╠═9e82c181-5347-4d4b-a0f1-fd345f3d068f
 # ╠═4ca50282-3d23-4ffa-9d4a-1861c52c1ca8
+# ╠═b670e2ee-8f50-4136-8db5-aee9b16d164f
 # ╟─935b82ff-45fd-4a7b-a753-047e1df90a6c
 # ╟─8ab5da39-e21a-4074-a6fb-670bd4bf290c
 # ╠═ad79aef6-907f-4c6d-8e15-e20ecf669e3b
