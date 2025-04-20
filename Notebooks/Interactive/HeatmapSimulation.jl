@@ -413,30 +413,6 @@ function findODMRPeaks(freqs, signal)
 	#return sort(peakFreqs)
 end
 
-# ╔═╡ b45d5a2c-32ca-4783-886c-1cf334146c30
-continousPeaksAlt(mBs[1] * directionVector)
-
-# ╔═╡ 3539cd59-8a52-4999-ac19-1e25d05274f8
-abs(mFreqs[1] - mFreqs[2])*1000
-
-# ╔═╡ 52959933-5cf4-41ce-ae96-fbcc31442515
-begin
-	local x = 35.3884
-	local y = 45.2909
-	local z = 86.0317
-	local θ = acos(z/sqrt(x^2 + y^2 + z^2))
-	local ϕ = acos(x/sqrt(x^2 + y^2))
-	local Bs = range(0, 2000, 1000)
-	local M = hcat(continousPeaks.(Bs, θ, ϕ)...)
-	local plt = plot()
-	for i in 1:8
-		fs = M[i,:]
-		plot!(plt, fs, Bs, color = :green, label = "", lw = 1)
-	end
-	plot!(plt, [2,2], [Bs[1], Bs[end]])
-	plt
-end
-
 # ╔═╡ 3781f19d-8d85-41a3-af3e-64f09f15d7c5
 # ╠═╡ disabled = true
 #=╠═╡
@@ -458,7 +434,7 @@ end
 # ╔═╡ 1f5f888e-1be5-47b8-9df7-122b7b4c662f
 begin
 	local M = hcat(continousPeaksAlt.(mBs .* Ref(directionVector))...)
-	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="Normlizált ODMR jelesrősség")
+	plt = heatmap(mFreqs, 0.1mBs, sqrt.(measurement), colorbar_title="Normalizált ODMR jelerősség")
 	#xlabel!(plt, "Microwave frequency (GHz)")
 	#ylabel!(plt, "Magnetic flux density (mT)")
 	
@@ -471,6 +447,30 @@ begin
 	end
 	savefig(plt, "~/Downloads/overlapped_hu.pdf")
 	#savefig(plt, "~/Downloads/overlapped.png")
+	plt
+end
+
+# ╔═╡ b45d5a2c-32ca-4783-886c-1cf334146c30
+continousPeaksAlt(mBs[1] * directionVector)
+
+# ╔═╡ 3539cd59-8a52-4999-ac19-1e25d05274f8
+abs(mFreqs[1] - mFreqs[2])*1000
+
+# ╔═╡ 52959933-5cf4-41ce-ae96-fbcc31442515
+begin
+	local x = 35.3884
+	local y = 45.2909
+	local z = 86.0317
+	local θ = acos(z/sqrt(x^2 + y^2 + z^2))
+	local ϕ = acos(x/sqrt(x^2 + y^2))
+	local Bs = range(0, 2000, 1000)
+	local M = hcat(continousPeaks.(Bs, θ, ϕ)...)
+	local plt = plot()
+	for i in 1:8
+		fs = M[i,:]
+		plot!(plt, fs, Bs, color = :green, label = "", lw = 1)
+	end
+	plot!(plt, [2,2], [Bs[1], Bs[end]])
 	plt
 end
 

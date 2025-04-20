@@ -113,10 +113,10 @@ function plotDirection(orientation)
 		s2[crossing:end] = temp
 	end
 	
-	plt = plot(Bs, s1, label = "")
-	plot!(plt, Bs, s2, label = "")
-	plot!(plt, Bs, s3, label = "")
-	xlabel!(plt, "B (Gauss)")
+	plt = plot(0.1Bs, s1, label = "")
+	plot!(plt, 0.1Bs, s2, label = "")
+	plot!(plt, 0.1Bs, s3, label = "")
+	xlabel!(plt, "B (mT)")
 	ylabel!(plt, "Energia (GHz)")
 	savefig(plt, "~/Downloads/energy_leves.pdf")
 	return plt
@@ -185,10 +185,10 @@ end
 # ╔═╡ 350a6c43-eea8-4300-a134-a9a891e47092
 begin
 	local parallel = plotDirection(normalize([0, 0, 1]))
-	title!(parallel, "Párhuzamos orientáció (a)")
+	title!(parallel, "Párhuzamos orientáció")
 	
 	local tetrahedral = plotDirection(normalize([1, -1, -1]))
-	title!(tetrahedral, "Tetraéderes orientáció (b)")
+	title!(tetrahedral, "Tetraéderes orientáció")
 	
 	local plt = plot(parallel, tetrahedral, layout = (2,1), size = (600,600))
 	savefig(plt, "~/Downloads/energy.pdf")
@@ -220,7 +220,7 @@ StaticArrays = "~1.9.7"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.4"
 manifest_format = "2.0"
 project_hash = "fbf3de534b7660698fb0a2f5f12a2017c71e1f2b"
 
@@ -757,7 +757,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
